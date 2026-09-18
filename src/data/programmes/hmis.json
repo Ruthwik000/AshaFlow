@@ -1,0 +1,51 @@
+{
+  "code": "HMIS",
+  "name": "HMIS Monthly Report",
+  "shortName": "Monthly count",
+  "icon": "chart",
+  "colour": "due",
+  "source": "HMIS standard monthly reporting format, sub-centre section (aggregate counts only)",
+  "sourceUrl": "https://nhm.gov.in/",
+  "version": 2,
+  "note": "Aggregate only — this programme receives no name, no address and no identifier.",
+  "fields": [
+    { "id": "month",   "label": "Reporting month",         "from": "hmis.reportMonth", "required": true },
+    { "id": "village", "label": "Sub-centre area",         "from": "household.village","required": true },
+    { "id": "date",    "label": "Date of service",         "from": "visit.date",       "required": true },
+    { "id": "asha",    "label": "Reported by (ASHA code)", "from": "visit.ashaId",     "required": true },
+
+    { "id": "ancNew",  "label": "New ANC registrations",   "from": "hmis.ancNewRegistrations", "required": true, "for": ["Pregnancy"] },
+    { "id": "ancDone", "label": "ANC visits completed",    "from": "anc.visitsDone",           "required": true, "for": ["Pregnancy"] },
+    { "id": "tt",      "label": "TT/Td doses given",       "from": "hmis.ttDosesGiven",        "required": true, "for": ["Pregnancy"] },
+    { "id": "ifa",     "label": "IFA tablets distributed", "from": "hmis.ifaDistributed",      "required": true, "for": ["Pregnancy"] },
+    { "id": "hrp",     "label": "High-risk pregnancies found","from": "hmis.hrpIdentified",    "required": true, "for": ["Pregnancy"] },
+    { "id": "anaemia", "label": "Anaemia cases (Hb band)", "from": "vitals.hb",                "required": true, "for": ["Pregnancy"] },
+    { "id": "hrpFlag", "label": "HRP flag",                "from": "pregnancy.isHighRisk",     "required": true, "for": ["Pregnancy"] },
+
+    { "id": "hbnc",    "label": "HBNC home visits made",   "from": "hmis.hbncVisits",          "required": true, "for": ["Newborn"] },
+    { "id": "weighed", "label": "Newborns weighed",        "from": "hmis.newbornsWeighed",     "required": true, "for": ["Newborn"] },
+    { "id": "lbw",     "label": "Low birth weight newborns","from": "hmis.lbwNewborns",        "required": true, "for": ["Newborn"] },
+    { "id": "instDel", "label": "Institutional deliveries","from": "hmis.institutionalDeliveries","required": true,"for": ["Newborn"] },
+    { "id": "nbRef",   "label": "Newborns referred",       "from": "newborn.referred",         "required": true, "for": ["Newborn"] },
+
+    { "id": "doses",   "label": "Immunisation doses given","from": "hmis.immunisationDoses",   "required": true, "for": ["Child vaccine"] },
+    { "id": "aefi",    "label": "AEFI reported",           "from": "hmis.aefiReported",        "required": true, "for": ["Child vaccine"] },
+    { "id": "immOk",   "label": "Milestone complete",      "from": "imm.upToDate",             "required": true, "for": ["Child vaccine"] },
+
+    { "id": "cbac",    "label": "CBAC checklists filled",  "from": "hmis.cbacFilled",          "required": true, "for": ["Health check"] },
+    { "id": "ncdRef",  "label": "Referred for NCD screening","from": "hmis.ncdReferred",       "required": true, "for": ["Health check"] },
+    { "id": "partB",   "label": "Part B symptom found",    "from": "ncd.partBPositive",        "required": true, "for": ["Health check"] },
+
+    { "id": "fever",   "label": "Fever cases seen",        "from": "hmis.feverCases",          "required": true, "for": ["Illness"] },
+    { "id": "ors",     "label": "Diarrhoea cases given ORS","from": "hmis.diarrhoeaOrs",       "required": true, "for": ["Illness"] },
+    { "id": "ari",     "label": "ARI cases seen",          "from": "hmis.ariCases",            "required": true, "for": ["Illness"] },
+    { "id": "malaria", "label": "Malaria rapid test positive","from": "hmis.malariaPositive",  "required": true, "for": ["Illness"] },
+    { "id": "illRef",  "label": "Referred urgently",       "from": "illness.referred",         "required": true, "for": ["Illness"] },
+
+    { "id": "hh",      "label": "Households surveyed",     "from": "hmis.householdsSurveyed",  "required": true, "for": ["Household survey"] },
+    { "id": "unmet",   "label": "Unmet need for contraception","from": "household.unmetNeed",  "required": true, "for": ["Household survey"] },
+
+    { "id": "tbPres",  "label": "TB presumptive cases",    "from": "tb.symptomatic",           "required": true,
+      "for": ["Pregnancy", "Health check", "Illness"] }
+  ]
+}

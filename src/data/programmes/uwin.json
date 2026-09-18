@@ -1,0 +1,53 @@
+{
+  "code": "UWIN",
+  "name": "U-WIN Immunisation",
+  "shortName": "U-WIN",
+  "icon": "syringe",
+  "colour": "info",
+  "source": "U-WIN beneficiary and vaccinator modules; National Immunization Schedule due-date rules",
+  "sourceUrl": "https://www.india.gov.in/category/health-wellness/subcategory/childrens-health-immunisation/details/website-of-u-win-platform",
+  "version": 2,
+  "fields": [
+    { "id": "motherName", "label": "Mother's name",        "from": "person.name",         "required": true,
+      "for": ["Pregnancy", "Newborn", "Child vaccine"] },
+    { "id": "mobile",     "label": "Contact number",       "from": "person.mobile",       "required": true,
+      "for": ["Pregnancy", "Newborn", "Child vaccine"] },
+    { "id": "abha",       "label": "ABHA ID",              "from": "person.abhaId",       "required": false,
+      "for": ["Pregnancy", "Newborn", "Child vaccine"] },
+    { "id": "village",    "label": "Session site village", "from": "household.village",   "required": true,
+      "for": ["Pregnancy", "Newborn", "Child vaccine"] },
+
+    { "id": "edd",        "label": "Expected delivery",    "from": "pregnancy.edd",       "required": true,  "for": ["Pregnancy"] },
+    { "id": "td2",        "label": "Maternal Td dose 2 due","from": "tt.dose2Due",        "required": true,  "for": ["Pregnancy"] },
+
+    { "id": "childDob",   "label": "Child date of birth",  "from": "child.dobOrExpected", "required": true,
+      "for": ["Pregnancy", "Newborn", "Child vaccine"] },
+    { "id": "cName",      "label": "Child's name",         "from": "child.name",          "required": true,
+      "for": ["Newborn", "Child vaccine"] },
+    { "id": "cSex",       "label": "Child's sex",          "from": "child.sex",           "required": true,
+      "for": ["Newborn", "Child vaccine"] },
+    { "id": "bwt",        "label": "Birth weight (kg)",    "from": "child.birthWeight",   "required": true,  "for": ["Newborn"] },
+
+    { "id": "bcg",        "label": "BCG due",              "from": "child.bcgDue",        "required": true,
+      "for": ["Pregnancy", "Newborn"] },
+    { "id": "opv0",       "label": "OPV-0 due",            "from": "child.opv0Due",       "required": true,
+      "for": ["Pregnancy", "Newborn"] },
+    { "id": "penta1",     "label": "Penta-1 due",          "from": "child.penta1Due",     "required": true,
+      "for": ["Pregnancy", "Newborn"] },
+    { "id": "penta2",     "label": "Penta-2 due",          "from": "child.penta2Due",     "required": true,  "for": ["Pregnancy"] },
+    { "id": "penta3",     "label": "Penta-3 due",          "from": "child.penta3Due",     "required": true,  "for": ["Pregnancy"] },
+    { "id": "mr1",        "label": "MR-1 due",             "from": "child.mr1Due",        "required": true,  "for": ["Pregnancy"] },
+    { "id": "vitA",       "label": "Vitamin A 1 due",      "from": "child.vitA1Due",      "required": true,  "for": ["Pregnancy"] },
+
+    { "id": "ageMonths",  "label": "Age in months",        "from": "child.ageMonths",     "required": true,  "for": ["Child vaccine"] },
+    { "id": "dueList",    "label": "Vaccines due at this milestone", "from": "imm.dueList","required": true, "for": ["Child vaccine"] },
+    { "id": "given",      "label": "Vaccines given today", "from": "imm.dosesGiven",      "required": true,  "for": ["Child vaccine"] },
+    { "id": "doseCount",  "label": "Number of doses given","from": "imm.doseCount",       "required": true,  "for": ["Child vaccine"] },
+    { "id": "site",       "label": "Session site",         "from": "imm.sessionSite",     "required": true,  "for": ["Child vaccine"] },
+    { "id": "aefi",       "label": "Adverse event reported","from": "imm.aefi",           "required": true,  "for": ["Child vaccine"] },
+    { "id": "card",       "label": "MCP card updated",     "from": "imm.cardUpdated",     "required": true,  "for": ["Child vaccine"] },
+    { "id": "upToDate",   "label": "Milestone complete",   "from": "imm.upToDate",        "required": true,  "for": ["Child vaccine"] },
+    { "id": "next",       "label": "Next vaccine due",     "from": "imm.nextDue",         "required": true,
+      "for": ["Newborn", "Child vaccine"] }
+  ]
+}

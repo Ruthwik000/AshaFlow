@@ -1,0 +1,45 @@
+{
+  "code": "BIRTH-REG",
+  "scheme": "PMMVY",
+  "name": "Birth registration application",
+  "subtitle": "Form 1, Registration of Births and Deaths Act",
+  "issuedBy": "Office of the Registrar General",
+  "appliesTo": "mother",
+  "version": 1,
+  "publishedOn": "2026-09-01",
+  "about": "Applies for the birth certificate. This is the document that most often holds up the final PMMVY instalment.",
+  "sections": [
+    {
+      "title": "Child",
+      "fields": [
+        { "id": "c1", "label": "Name of the child",  "from": "child.name",        "type": "text",   "required": false,
+          "hint": "May be left blank and added later." },
+        { "id": "c2", "label": "Date of birth",      "from": "child.dob",         "type": "date",   "required": true },
+        { "id": "c3", "label": "Sex",                "from": "child.sex",         "type": "choice", "required": true,
+          "options": [{"v":"M","l":"Male"},{"v":"F","l":"Female"}] },
+        { "id": "c4", "label": "Place of birth",     "from": "birth.place",       "type": "text",   "required": true },
+        { "id": "c5", "label": "Birth weight (kg)",  "from": "child.birthWeight", "type": "number", "required": true },
+        { "id": "c6", "label": "Time of birth",      "from": "birth.time",        "type": "text",   "required": false }
+      ]
+    },
+    {
+      "title": "Parents",
+      "fields": [
+        { "id": "p1", "label": "Mother's name",     "from": "person.name",         "type": "text",   "required": true },
+        { "id": "p2", "label": "Mother's age at birth", "from": "person.age",      "type": "number", "required": true },
+        { "id": "p3", "label": "Father's name",     "from": "person.husbandName",  "type": "text",   "required": true },
+        { "id": "p4", "label": "Mother's Aadhaar",  "from": "doc.aadhaarFull",     "type": "number", "required": true },
+        { "id": "p5", "label": "Father's Aadhaar",  "from": "doc.husbandAadhaar",  "type": "number", "required": true },
+        { "id": "p6", "label": "Address",           "from": "household.village",   "type": "text",   "required": true }
+      ]
+    },
+    {
+      "title": "Informant",
+      "fields": [
+        { "id": "i1", "label": "Discharge slip number", "from": "birth.dischargeNo", "type": "text", "required": true },
+        { "id": "i2", "label": "Informant name",        "from": "birth.informant",   "type": "text", "required": true },
+        { "id": "i3", "label": "Date of application",   "from": "visit.date",        "type": "date", "required": true }
+      ]
+    }
+  ]
+}

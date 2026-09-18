@@ -1,0 +1,45 @@
+{
+  "code": "ICDS-REG",
+  "scheme": "ICDS",
+  "name": "Anganwadi registration",
+  "subtitle": "Supplementary nutrition",
+  "issuedBy": "Ministry of Women and Child Development",
+  "appliesTo": "any",
+  "version": 1,
+  "publishedOn": "2026-06-20",
+  "about": "Registers a pregnant woman, a breastfeeding mother or a child under six at the Anganwadi centre for take-home ration and growth monitoring.",
+  "sections": [
+    {
+      "title": "Person being registered",
+      "fields": [
+        { "id": "r1", "label": "Name",          "from": "person.name",       "type": "text",   "required": true },
+        { "id": "r2", "label": "Age",           "from": "person.age",        "type": "number", "required": true },
+        { "id": "r3", "label": "Sex",           "from": "person.sex",        "type": "choice", "required": true,
+          "options": [{"v":"F","l":"Female"},{"v":"M","l":"Male"}] },
+        { "id": "r4", "label": "Category",      "from": "person.caste",      "type": "choice", "required": true,
+          "options": [{"v":"SC","l":"SC"},{"v":"ST","l":"ST"},{"v":"OBC","l":"OBC"},{"v":"GEN","l":"General"}] },
+        { "id": "r5", "label": "Reason for registering", "from": "icds.reason", "type": "choice", "required": true,
+          "options": [{"v":"pregnant","l":"Pregnant"},{"v":"lactating","l":"Breastfeeding"},{"v":"child","l":"Child under six"}] }
+      ]
+    },
+    {
+      "title": "Household",
+      "fields": [
+        { "id": "h1", "label": "Head of family", "from": "household.headName",     "type": "text",   "required": true },
+        { "id": "h2", "label": "House number",   "from": "household.houseNo",      "type": "text",   "required": true },
+        { "id": "h3", "label": "Village",        "from": "household.village",      "type": "text",   "required": true },
+        { "id": "h4", "label": "Members",        "from": "household.membersCount", "type": "number", "required": true },
+        { "id": "h5", "label": "BPL card",       "from": "household.bplCard",      "type": "boolean","required": true },
+        { "id": "h6", "label": "Ration card number", "from": "doc.rationCardNo",   "type": "text",   "required": false }
+      ]
+    },
+    {
+      "title": "Centre",
+      "fields": [
+        { "id": "c1", "label": "Anganwadi centre", "from": "icds.centre",  "type": "text", "required": true },
+        { "id": "c2", "label": "Date of registration", "from": "visit.date", "type": "date", "required": true },
+        { "id": "c3", "label": "Registered by (ASHA code)", "from": "visit.ashaId", "type": "text", "required": true }
+      ]
+    }
+  ]
+}

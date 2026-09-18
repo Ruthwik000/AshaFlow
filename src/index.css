@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+/* ============================================================
+   ASHAFlow — tactile minimal
+   Sparse layout, restrained palette, but every control has real
+   physical depth: raised surfaces, inset wells, pressed states.
+   ============================================================ */
+
+@theme {
+  --font-sans: "Noto Sans", "Noto Sans Devanagari", system-ui, -apple-system, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+
+  /* paper + ink */
+  --color-paper:    #EDEEE8;
+  --color-paper-2:  #E3E5DD;
+  --color-surface:  #FCFCFA;
+  --color-sunken:   #E7E9E1;
+  --color-ink:      #14201A;
+  --color-ink-2:    #465349;
+  --color-ink-3:    #7C8880;
+  --color-line:     #D3D8CE;
+  --color-line-2:   #E6E9E0;
+
+  /* brand */
+  --color-brand:      #0E6349;
+  --color-brand-lit:  #16815F;
+  --color-brand-deep: #084433;
+  --color-brand-soft: #D6E8E0;
+  --color-brand-tint: #EFF6F2;
+
+  /* semantic — separate from brand */
+  --color-due:       #9A6510;
+  --color-due-soft:  #F7E9CE;
+  --color-late:      #A02E23;
+  --color-late-soft: #F7DEDA;
+  --color-info:      #1B5480;
+  --color-info-soft: #DCE9F4;
+  --color-agent:     #6B2E55;
+  --color-agent-soft:#F0DEE9;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  background: #DADCD3;
+}
+
+button, input, select { font-family: inherit; }
+
+/* ---- the paper ground: warm, with a barely-there grain ---- */
+.paper-ground {
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,.55), transparent 42%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.055'/%3E%3C/svg%3E");
+}
+
+.app-frame {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 520px) {
+  .app-frame {
+    min-height: 100dvh;
+    box-shadow: 0 0 0 1px #C4C8BE, 0 30px 70px -28px rgba(20, 32, 26, .45);
+  }
+}
+
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.safe-bot { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.num { font-variant-numeric: tabular-nums; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ============================================================
+   DEPTH PRIMITIVES — the whole tactile language lives here.
+   ============================================================ */
+
+/* a surface lifted off the paper */
+.raise {
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--color-surface) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.95),
+    0 1px 1.5px rgba(20,32,26,.07),
+    0 4px 12px -4px rgba(20,32,26,.13);
+  border: 1px solid var(--color-line);
+}
+.raise-sm {
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--color-surface) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.9),
+    0 1px 1px rgba(20,32,26,.06),
+    0 2px 6px -3px rgba(20,32,26,.12);
+  border: 1px solid var(--color-line);
+}
+
+/* pressed into the paper — inputs, tracks, wells */
+.sink {
+  background: var(--color-sunken);
+  box-shadow:
+    inset 0 2px 4px rgba(20,32,26,.13),
+    inset 0 -1px 0 rgba(255,255,255,.7);
+  border: 1px solid var(--color-line);
+}
+
+/* a control that physically depresses */
+.press { transition: transform .06s ease, box-shadow .06s ease, filter .12s ease; }
+.press:active { transform: translateY(1.5px); }
+
+.btn-solid {
+  background: linear-gradient(180deg, var(--color-brand-lit) 0%, var(--color-brand) 55%, var(--color-brand-deep) 100%);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.3),
+    inset 0 -1px 0 rgba(0,0,0,.18),
+    0 2px 3px rgba(8,52,38,.22),
+    0 6px 16px -6px rgba(8,52,38,.5);
+  border: 1px solid var(--color-brand-deep);
+}
+.btn-solid:active {
+  background: linear-gradient(180deg, var(--color-brand) 0%, var(--color-brand-deep) 100%);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.3), 0 1px 2px rgba(8,52,38,.2);
+}
+.btn-solid:disabled {
+  background: var(--color-line); color: var(--color-ink-3);
+  border-color: var(--color-line); box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+.btn-quiet {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F4F5F0 100%);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 1px 2px rgba(20,32,26,.08), 0 3px 8px -4px rgba(20,32,26,.14);
+}
+.btn-quiet:active { background: #EFF0EA; box-shadow: inset 0 2px 4px rgba(20,32,26,.14); }
+
+.btn-dark {
+  background: linear-gradient(180deg, #2C3A32 0%, #14201A 100%);
+  color: #fff; border: 1px solid #0A120E;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 2px 3px rgba(0,0,0,.2), 0 6px 16px -6px rgba(0,0,0,.45);
+}
+.btn-dark:active { box-shadow: inset 0 2px 5px rgba(0,0,0,.4); }
+
+.btn-danger {
+  background: linear-gradient(180deg, #BE3A2D 0%, #8E271D 100%);
+  color: #fff; border: 1px solid #762017;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 2px 3px rgba(118,32,23,.25);
+}
+
+/* physical toggle */
+.switch-track { box-shadow: inset 0 2px 4px rgba(20,32,26,.25), inset 0 -1px 0 rgba(255,255,255,.35); }
+.switch-knob {
+  background: linear-gradient(180deg, #FFFFFF 0%, #ECEDE7 100%);
+  box-shadow: 0 1px 2px rgba(20,32,26,.3), 0 2px 5px -1px rgba(20,32,26,.28), inset 0 1px 0 #fff;
+}
+
+/* a ruled ledger strip — used only where a register is being echoed */
+.ruled {
+  background-image: repeating-linear-gradient(
+    to bottom, transparent, transparent 35px, var(--color-line-2) 35px, var(--color-line-2) 36px);
+}
+
+/* the counter chip — the single loudest element in the app */
+.chip-dark {
+  background: linear-gradient(180deg, #2C3A32 0%, #14201A 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 2px 5px rgba(0,0,0,.3);
+}
+
+/* ============================================================
+   MOTION
+   ============================================================ */
+@keyframes pop   { from { transform: scale(.94); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes up    { from { transform: translateY(12px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes fan   { from { transform: translateY(-22px) scale(.93); opacity: 0 } to { transform: none; opacity: 1 } }
+.anim-pop { animation: pop .2s cubic-bezier(.2,.9,.3,1.2) both; }
+.anim-up  { animation: up .3s cubic-bezier(.2,.7,.3,1) both; }
+.anim-fan { animation: fan .42s cubic-bezier(.2,.8,.3,1.05) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-pop, .anim-up, .anim-fan { animation: none !important; }
+  *, .press { transition-duration: .01ms !important; }
+}
+
+:focus-visible { outline: 3px solid var(--color-brand-lit); outline-offset: 2px; border-radius: 8px; }

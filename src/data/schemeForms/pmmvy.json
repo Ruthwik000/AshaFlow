@@ -1,0 +1,69 @@
+{
+  "code": "PMMVY-1A",
+  "scheme": "PMMVY",
+  "name": "PMMVY first instalment claim",
+  "subtitle": "Form 1-A",
+  "issuedBy": "Ministry of Women and Child Development",
+  "appliesTo": "pregnant",
+  "version": 3,
+  "publishedOn": "2026-08-14",
+  "about": "Claims the first instalment of the maternity benefit. Submit after the pregnancy is registered and the first antenatal check-up is done.",
+  "sections": [
+    {
+      "title": "Beneficiary",
+      "fields": [
+        { "id": "b1", "label": "Name of beneficiary",        "from": "person.name",          "type": "text",   "required": true },
+        { "id": "b2", "label": "Age (years)",                "from": "person.age",           "type": "number", "required": true },
+        { "id": "b3", "label": "Husband's name",             "from": "person.husbandName",   "type": "text",   "required": true },
+        { "id": "b4", "label": "Mobile number",              "from": "person.mobile",        "type": "number", "required": true },
+        { "id": "b5", "label": "Category",                   "from": "person.caste",         "type": "choice", "required": false,
+          "options": [{"v":"SC","l":"SC"},{"v":"ST","l":"ST"},{"v":"OBC","l":"OBC"},{"v":"GEN","l":"General"}] },
+        { "id": "b6", "label": "Beneficiary Aadhaar (12 digits)", "from": "doc.aadhaarFull", "type": "number", "required": true,
+          "hint": "Ask her for the card. It is not stored from the household survey." },
+        { "id": "b7", "label": "Husband's Aadhaar (12 digits)",   "from": "doc.husbandAadhaar", "type": "number", "required": true }
+      ]
+    },
+    {
+      "title": "Address",
+      "fields": [
+        { "id": "a1", "label": "Village",       "from": "household.village", "type": "text", "required": true },
+        { "id": "a2", "label": "House number",  "from": "household.houseNo", "type": "text", "required": true },
+        { "id": "a3", "label": "Block",         "from": "household.block",   "type": "text", "required": true },
+        { "id": "a4", "label": "District",      "from": "household.district","type": "text", "required": true }
+      ]
+    },
+    {
+      "title": "Pregnancy",
+      "fields": [
+        { "id": "p1", "label": "Date of last menstrual period", "from": "pregnancy.lmp",   "type": "date",   "required": true },
+        { "id": "p2", "label": "Expected date of delivery",     "from": "pregnancy.edd",   "type": "date",   "required": true },
+        { "id": "p3", "label": "RCH ID",                        "from": "pregnancy.rchId", "type": "text",   "required": true },
+        { "id": "p4", "label": "Date of pregnancy registration","from": "pregnancy.registeredOn", "type": "date", "required": true },
+        { "id": "p5", "label": "Order of this child",           "from": "pregnancy.gravida", "type": "choice", "required": true,
+          "options": [{"v":1,"l":"First"},{"v":2,"l":"Second"},{"v":3,"l":"Third or later"}] },
+        { "id": "p6", "label": "MCP card number",               "from": "doc.mcpCardNo",   "type": "text",   "required": true,
+          "hint": "Printed on the front of the Mother and Child Protection card." },
+        { "id": "p7", "label": "First ANC check-up done",        "from": "anc.visit1Done",  "type": "boolean","required": true }
+      ]
+    },
+    {
+      "title": "Bank account",
+      "note": "The account must be in the beneficiary's own name and have Aadhaar seeded to it.",
+      "fields": [
+        { "id": "k1", "label": "Account holder name", "from": "bank.holderName", "type": "text",   "required": true },
+        { "id": "k2", "label": "Account number",      "from": "bank.accountNo",  "type": "number", "required": true },
+        { "id": "k3", "label": "IFSC code",           "from": "bank.ifsc",       "type": "text",   "required": true },
+        { "id": "k4", "label": "Bank and branch",     "from": "bank.name",       "type": "text",   "required": true },
+        { "id": "k5", "label": "Aadhaar seeded to this account", "from": "bank.aadhaarSeeded", "type": "boolean", "required": true,
+          "hint": "If she is not sure, this is the most common reason the payment never arrives." }
+      ]
+    },
+    {
+      "title": "Submitted by",
+      "fields": [
+        { "id": "s1", "label": "ASHA code",     "from": "visit.ashaId", "type": "text", "required": true },
+        { "id": "s2", "label": "Date of claim", "from": "visit.date",   "type": "date", "required": true }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "code": "JSY-CLAIM",
+  "scheme": "JSY",
+  "name": "JSY delivery claim",
+  "subtitle": "Janani Suraksha Yojana",
+  "issuedBy": "National Health Mission",
+  "appliesTo": "mother",
+  "version": 2,
+  "publishedOn": "2026-07-02",
+  "about": "Claims the cash benefit for delivering at a government or accredited facility. Filled at discharge.",
+  "sections": [
+    {
+      "title": "Mother",
+      "fields": [
+        { "id": "m1", "label": "Name of mother",   "from": "person.name",        "type": "text",   "required": true },
+        { "id": "m2", "label": "Age",              "from": "person.age",         "type": "number", "required": true },
+        { "id": "m3", "label": "Husband's name",   "from": "person.husbandName", "type": "text",   "required": true },
+        { "id": "m4", "label": "Mobile number",    "from": "person.mobile",      "type": "number", "required": true },
+        { "id": "m5", "label": "Category",         "from": "person.caste",       "type": "choice", "required": true,
+          "options": [{"v":"SC","l":"SC"},{"v":"ST","l":"ST"},{"v":"OBC","l":"OBC"},{"v":"GEN","l":"General"}] },
+        { "id": "m6", "label": "BPL household",    "from": "household.bplCard",  "type": "boolean","required": true },
+        { "id": "m7", "label": "Village",          "from": "household.village",  "type": "text",   "required": true }
+      ]
+    },
+    {
+      "title": "Delivery",
+      "fields": [
+        { "id": "d1", "label": "Date of delivery",     "from": "child.dob",          "type": "date",   "required": true },
+        { "id": "d2", "label": "Place of delivery",    "from": "birth.place",        "type": "text",   "required": true,
+          "hint": "Name of the government facility." },
+        { "id": "d3", "label": "Type of delivery",     "from": "birth.type",         "type": "choice", "required": true,
+          "options": [{"v":"normal","l":"Normal"},{"v":"cs","l":"Caesarean"},{"v":"assisted","l":"Assisted"}] },
+        { "id": "d4", "label": "Attended by",          "from": "birth.attendedBy",   "type": "text",   "required": true },
+        { "id": "d5", "label": "Birth weight (kg)",    "from": "child.birthWeight",  "type": "number", "required": true },
+        { "id": "d6", "label": "Sex of the child",     "from": "child.sex",          "type": "choice", "required": true,
+          "options": [{"v":"M","l":"Male"},{"v":"F","l":"Female"}] },
+        { "id": "d7", "label": "Discharge slip number","from": "birth.dischargeNo",  "type": "text",   "required": true }
+      ]
+    },
+    {
+      "title": "Bank account",
+      "fields": [
+        { "id": "k1", "label": "Account holder name", "from": "bank.holderName", "type": "text",   "required": true },
+        { "id": "k2", "label": "Account number",      "from": "bank.accountNo",  "type": "number", "required": true },
+        { "id": "k3", "label": "IFSC code",           "from": "bank.ifsc",       "type": "text",   "required": true }
+      ]
+    },
+    {
+      "title": "Accompanied by",
+      "fields": [
+        { "id": "s1", "label": "ASHA code",      "from": "visit.ashaId", "type": "text",    "required": true },
+        { "id": "s2", "label": "ASHA accompanied the mother", "from": "jsy.accompanied", "type": "boolean", "required": true },
+        { "id": "s3", "label": "Date of claim",  "from": "visit.date",   "type": "date",    "required": true }
+      ]
+    }
+  ]
+}
