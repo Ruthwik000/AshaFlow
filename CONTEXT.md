@@ -317,6 +317,28 @@ capture-to-five-outputs flow must work with venue wifi off — that is the claim
 > One or two lines per change. **Newest first.** Date · what changed · why.
 > Add an entry every time anything in this repo changes.
 
+### 2026-09-19 — the mapping control appeared where it was least useful
+- **It was shown only for fields the reader could not match, or matched unsurely.** That is exactly
+  backwards. OCR is confidently wrong all the time, and a confident wrong match — "Name of pregnant
+  woman" read as the *head of family* — was the one thing the worker could not correct, because a
+  95% row had no control at all. Every field now carries the same control.
+- **And when it did appear it was a flat list of 150 record fields**, in no order, with no hint
+  which one the printed label meant. New `engine/mapSuggest.js` scores every canonical path against
+  the label and puts the plausible ones in a "Likely match for this label" group at the top; the
+  whole record follows, grouped by area (the person, the household, pregnancy, measurements…).
+  Scoring weighs what a field is *called* above how its question is worded, stems plurals
+  (pregnancies → pregnancy) and carries a small synonym table for registrar's English (TT → Td,
+  IFA → iron, Hb → haemoglobin, born → birth). An exact label match scores 1 and sorts first.
+- **"no match — will be asked every time" was simply untrue.** An unmapped field is saved as
+  `scan.<slug>`, written by `saveLearned` on submit and merged back by `buildSubjectFacts` — so it
+  is asked once for a family and remembered after that. The orange warning is gone; the row now
+  says what actually happens, and the summary counts "8 fill themselves from the record · 1 asked
+  once, then remembered · 3 read unclearly" instead of calling the remainder a failure.
+- Verified on the worked sample: **9 controls for 9 fields** where there had been 1, each preselected
+  with its likely match (Name → person.name, House no. → household.houseNo, LMP → pregnancy.lmp,
+  Hb → vitals.hb, TT dose given → tt.dose1Given), and changing one updates the caption to the new
+  path. Smoke: **PASS, 40 routes × 2 configs.**
+
 ### 2026-09-19 — the demo account filled nothing, and nothing was ever spoken aloud
 - **"Use demo account" did nothing** because `ASHA` in `seed.js` has no `email`, so `r.email` was
   `undefined` and `setEmail(undefined)` turned a controlled input into an uncontrolled one — the

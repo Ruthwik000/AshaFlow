@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { extractFormFromImage, hasOCR } from '../../ai'
 import { explain } from '../../ai/config'
 import { saveCustomForm } from '../../db/db'
 import { PATH_LABELS } from '../../data/canonical'
+import { suggestPaths, pathGroups } from '../../engine/mapSuggest'
 import Icon from '../../components/Icon'
 import { TopBar, Card, Btn, Notice, Section, Pill, Field, TextField } from '../../components/ui'
 
@@ -31,7 +32,72 @@ const SAMPLE = {
 
 const STEPS = ['Sending the photograph', 'Reading the printed labels',
                'Matching them to the record', 'Checking the values']
-const PATHS = Object.keys(PATH_LABELS)
+
+/* Every field gets the same control.
+
+   It used to appear only where the read was unmatched or unsure, which got it
+   exactly backwards: a confident wrong match — and OCR is confidently wrong
+   all the time — was the one thing that could not be corrected. And the
+   dropdown, when it did appear, was a flat list of 150 record fields with no
+   hint which one this label meant.
+
+   So: one control everywhere, with the likely matches for this label at the
+   top and the whole record grouped underneath. */
+function FieldRow({ f, onMap, onDrop }) {
+  const suggestions = useMemo(() => suggestPaths(f.label), [f.label])
+  const groups = useMemo(() => pathGroups(), [])
+  const suggested = new Set(suggestions.map(x => x.path))
+  const sure = (f.confidence ?? 0) >= 0.75
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-semibold leading-snug">{f.label}</div>
+          {f.value ? <div className="text-[15.5px] font-semibold num mt-0.5">{f.value}</div> : null}
+        </div>
+        <span className={`text-[12px] font-bold num shrink-0 ${sure ? 'text-brand' : 'text-due'}`}
+          title={sure ? 'read clearly' : 'the reading of this label is uncertain — check it'}>
+          {Math.round((f.confidence ?? 0) * 100)}%
+        </span>
+      </div>
+
+      <div className="flex gap-2 mt-2">
+        <select value={f.maps || ''} onChange={e => onMap(e.target.value)}
+          aria-label={`Which record field is "${f.label}"?`}
+          className={`sink flex-1 min-h-[42px] rounded-lg px-2.5 text-[13px] font-medium
+            ${f.maps ? 'text-ink' : 'text-ink-2'}`}>
+          <option value="">Not on the record — ask once</option>
+          {suggestions.length > 0 && (
+            <optgroup label="Likely match for this label">
+              {suggestions.map(x => <option key={x.path} value={x.path}>{PATH_LABELS[x.path]}</option>)}
+            </optgroup>
+          )}
+          {groups.map(g => {
+            const rest = g.paths.filter(p => !suggested.has(p))
+            if (!rest.length) return null
+            return (
+              <optgroup key={g.title} label={g.title}>
+                {rest.map(p => <option key={p} value={p}>{PATH_LABELS[p]}</option>)}
+              </optgroup>
+            )
+          })}
+        </select>
+        <Btn size="sm" tone="ghost" onClick={onDrop}>Drop</Btn>
+      </div>
+
+      <div className="text-[11.5px] mt-1.5 leading-snug">
+        {f.maps
+          ? <span className="text-brand">
+              Fills itself from the record — <code className="num">{f.maps}</code>
+            </span>
+          : <span className="text-ink-3">
+              Nothing on the record holds this. It is asked once for a family, then remembered.
+            </span>}
+      </div>
+    </div>
+  )
+}
 
 export default function ScanForm() {
   const nav = useNavigate()
@@ -215,41 +281,18 @@ export default function ScanForm() {
                   </>
                 )}
                 <span>{fields.length} fields read</span><span>·</span>
-                <span>{mapped} matched to the record</span>
-                {low > 0 && <><span>·</span><span className="text-due font-semibold">{low} need checking</span></>}
+                <span>{mapped} fill themselves from the record</span>
+                {fields.length - mapped > 0 && (
+                  <><span>·</span><span>{fields.length - mapped} asked once, then remembered</span></>
+                )}
+                {low > 0 && <><span>·</span><span className="text-due font-semibold">{low} read unclearly</span></>}
               </div>
             </div>
 
             <Section title="What was read">
               <div className="raise rounded-2xl overflow-hidden divide-y divide-line-2">
                 {fields.map((f, i) => (
-                  <div key={i} className="px-4 py-3">
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[12px] text-ink-3">{f.label}</div>
-                        {f.value ? <div className="text-[15.5px] font-semibold num mt-0.5">{f.value}</div> : null}
-                        <div className="text-[12px] mt-1">
-                          {f.maps
-                            ? <span className="text-ink-3">→ <code className="num">{f.maps}</code></span>
-                            : <span className="text-due font-semibold">no match — will be asked every time</span>}
-                        </div>
-                      </div>
-                      <span className={`text-[12px] font-bold num shrink-0 ${f.confidence < 0.75 ? 'text-due' : 'text-brand'}`}>
-                        {Math.round((f.confidence ?? 0) * 100)}%
-                      </span>
-                    </div>
-                    {(f.confidence < 0.75 || !f.maps) && (
-                      <div className="flex gap-2 mt-2.5">
-                        <select value={f.maps || ''} onChange={e => remap(i, e.target.value)}
-                          aria-label={`Map ${f.label}`}
-                          className="sink flex-1 min-h-[40px] rounded-lg px-2.5 text-[13px] font-medium">
-                          <option value="">not mapped</option>
-                          {PATHS.map(p => <option key={p} value={p}>{PATH_LABELS[p]}</option>)}
-                        </select>
-                        <Btn size="sm" tone="ghost" onClick={() => drop(i)}>Drop</Btn>
-                      </div>
-                    )}
-                  </div>
+                  <FieldRow key={i} f={f} onMap={p => remap(i, p)} onDrop={() => drop(i)} />
                 ))}
               </div>
             </Section>

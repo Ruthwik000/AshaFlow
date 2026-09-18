@@ -119,7 +119,9 @@ async function liveModels(provider) {
 
 function choose(ids, prefs, configured) {
   const usable = ids.filter(id => !dead.has(id) && !NOT_A_CHAT_MODEL.test(id))
-  if (configured && usable.includes(configured)) return configured
+  // Filter out retired Gemini 2.0/2.5 flash models that Google has sunsetted
+  const cleanConfigured = configured && !/^gemini-2\.[05]-flash/i.test(configured) ? configured : null
+  if (cleanConfigured && usable.includes(cleanConfigured)) return cleanConfigured
   for (const re of prefs) {
     const hit = usable.find(id => re.test(id))
     if (hit) return hit

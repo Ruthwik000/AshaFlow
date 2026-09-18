@@ -8,10 +8,10 @@ import { TopBar, Card, Section, Btn, Pill, Notice, List, Row } from '../../compo
 const PROVIDERS = [
   { id: 'gemini', label: 'Gemini', envKey: 'VITE_GEMINI_API_KEY', run: testGemini,
     key: () => AI.gemini.key, model: () => AI.gemini.model, vision: () => AI.gemini.vision,
-    does: 'Chat first · OCR fallback' },
+    does: 'Chat first · Primary OCR vision' },
   { id: 'grok', label: AI.grok.label, envKey: 'VITE_GROK_API_KEY', run: testGrok,
     key: () => AI.grok.key, model: () => AI.grok.model, vision: () => AI.grok.vision,
-    does: 'Chat fallback · OCR first' },
+    does: AI.grok.service === 'groq' ? 'Ultra-fast chat (~500 tps) · Text & Reasoning' : 'Chat fallback · OCR first' },
 ]
 
 export default function Diagnostics() {
@@ -106,12 +106,19 @@ export default function Diagnostics() {
                     {r?.willUseChat || <span className="text-ink-3">asked at the first call</span>}
                   </span>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-ink-2">Vision model</span>
-                  <span className="font-semibold num text-right">
-                    {r?.willUseVision || <span className="text-ink-3">asked at the first call</span>}
-                  </span>
-                </div>
+                {p.id === 'grok' && AI.grok.service === 'groq' ? (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-ink-2">Vision model</span>
+                    <span className="text-brand font-medium text-right">Handled by Gemini</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-ink-2">Vision model</span>
+                    <span className="font-semibold num text-right">
+                      {r?.willUseVision || <span className="text-ink-3">asked at the first call</span>}
+                    </span>
+                  </div>
+                )}
                 {k.hasSpace && (
                   <div className="text-late font-semibold">
                     The key contains a space — check for a line break in .env.
@@ -130,11 +137,15 @@ export default function Diagnostics() {
                       and pin it in .env.
                     </p>
                   )}
-                  {r.hasVision === false && (
+                  {r.hasVision === false && p.id !== 'grok' && (
                     <p className="text-[12.5px] text-due font-semibold mb-2">
                       Nothing in this list reads images, so OCR will fall through to the other
-                      reader. Pin one below with{' '}
-                      <code>{p.id === 'grok' ? 'VITE_GROK_VISION_MODEL' : 'VITE_GEMINI_VISION_MODEL'}</code>.
+                      reader. Pin one below with <code>VITE_GEMINI_VISION_MODEL</code>.
+                    </p>
+                  )}
+                  {p.id === 'grok' && AI.grok.service === 'groq' && (
+                    <p className="text-[12px] text-ink-3 mb-2">
+                      Groq is specialized for ultra-fast text inference (~500 tps). Paper register OCR is automatically routed to Gemini Vision.
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1.5">
