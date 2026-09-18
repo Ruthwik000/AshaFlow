@@ -2,18 +2,49 @@ import { AI, hasProxy } from './config'
 
 const TIMEOUT = 20000
 
-async function post(url, body, headers = {}, ms = TIMEOUT) {
+async function req(url, { method = 'POST', body, headers = {}, ms = TIMEOUT } = {}) {
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), ms)
   try {
     const r = await fetch(url, {
-      method: 'POST', signal: ctl.signal,
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify(body),
+      method, signal: ctl.signal,
+      headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers },
+      ...(body ? { body: JSON.stringify(body) } : {}),
     })
-    if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 180)}`)
-    return await r.json()
+    const text = await r.text()
+    if (!r.ok) {
+      // keep the provider's own words — explain() reads them to classify the failure
+      let detail = text.slice(0, 220)
+      try { const j = JSON.parse(text); detail = j.error?.message || j.error || detail } catch {}
+      throw new Error(`${r.status} ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`)
+    }
+    return text ? JSON.parse(text) : {}
   } finally { clearTimeout(timer) }
+}
+
+const post = (url, body, headers, ms) => req(url, { body, headers, ms })
+
+/* ------------------------------------------------------- key self-tests */
+
+/** Ask each provider whether the key is good, without spending a generation. */
+export async function testGemini() {
+  if (hasProxy()) { await req(`${AI.proxy}/health`, { method: 'GET', ms: 8000 }); return { models: ['via proxy'] } }
+  const j = await req(`https://generativelanguage.googleapis.com/v1beta/models?key=${AI.gemini.key}`,
+    { method: 'GET', ms: 12000 })
+  const models = (j.models || []).map(m => m.name?.replace('models/', '')).filter(Boolean)
+  return { models, hasConfigured: models.includes(AI.gemini.model) }
+}
+
+export async function testGrok() {
+  if (hasProxy()) { await req(`${AI.proxy}/health`, { method: 'GET', ms: 8000 }); return { models: ['via proxy'] } }
+  const j = await req('https://api.x.ai/v1/models',
+    { method: 'GET', headers: { Authorization: `Bearer ${AI.grok.key}` }, ms: 12000 })
+  const models = (j.data || []).map(m => m.id).filter(Boolean)
+  return {
+    models,
+    hasConfigured: models.includes(AI.grok.model),
+    hasVision: models.includes(AI.grok.vision),
+  }
 }
 
 /* ---------------------------------------------------------------- Gemini */
@@ -68,5 +99,40 @@ export async function grokVision({ prompt, dataUrl }) {
   }, { Authorization: `Bearer ${AI.grok.key}` }, 45000)
   const text = j?.choices?.[0]?.message?.content || ''
   if (!text.trim()) throw new Error('grok vision returned nothing')
+  return text
+}
+
+/** Gemini vision reads a photographed form and returns its structure. */
+export async function geminiVision({ prompt, dataUrl }) {
+  if (hasProxy()) {
+    const j = await post(`${AI.proxy}/ocr`, { provider: 'gemini', prompt, image: dataUrl }, {}, 45000)
+    return j.text
+  }
+  const match = (dataUrl || '').match(/^data:([^;]+);base64,(.+)$/)
+  const mimeType = match ? match[1] : 'image/jpeg'
+  const base64Data = match ? match[2] : dataUrl
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI.gemini.model}:generateContent?key=${AI.gemini.key}`
+  const j = await post(url, {
+    contents: [{
+      role: 'user',
+      parts: [
+        {
+          inlineData: {
+            mimeType,
+            data: base64Data,
+          },
+        },
+        { text: prompt },
+      ],
+    }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 2048,
+    },
+  }, {}, 45000)
+
+  const text = j?.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || ''
+  if (!text.trim()) throw new Error('gemini vision returned nothing')
   return text
 }

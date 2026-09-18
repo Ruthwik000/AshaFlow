@@ -31,6 +31,7 @@ import Earnings from './pages/asha/Earnings'
 import SyncPage from './pages/asha/SyncPage'
 import More from './pages/asha/More'
 import Profile from './pages/asha/Profile'
+import Diagnostics from './pages/asha/Diagnostics'
 import Proof from './pages/asha/Proof'
 import Paper from './pages/asha/Paper'
 
@@ -108,6 +109,7 @@ export default function App() {
         <Route element={<Plain />}>
           <Route path="/asha/more" element={<More />} />
           <Route path="/asha/profile" element={<Profile />} />
+          <Route path="/asha/diagnostics" element={<Diagnostics />} />
           <Route path="/asha/scan" element={<ScanForm />} />
           <Route path="/asha/new-schema" element={<NewSchema />} />
           <Route path="/asha/reminders" element={<Reminders />} />

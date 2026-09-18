@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { extractFormFromImage, hasOCR } from '../../ai'
+import { explain } from '../../ai/config'
 import { saveCustomForm } from '../../db/db'
 import { PATH_LABELS } from '../../data/canonical'
 import Icon from '../../components/Icon'
@@ -32,6 +33,34 @@ const STEPS = ['Sending the photograph', 'Reading the printed labels',
                'Matching them to the record', 'Checking the values']
 const PATHS = Object.keys(PATH_LABELS)
 
+async function resizeImage(dataUrl, maxDim = 1600) {
+  return new Promise(res => {
+    const img = new Image()
+    img.onload = () => {
+      let { width, height } = img
+      if (width <= maxDim && height <= maxDim) {
+        res(dataUrl)
+        return
+      }
+      if (width > height) {
+        height = Math.round((height * maxDim) / width)
+        width = maxDim
+      } else {
+        width = Math.round((width * maxDim) / height)
+        height = maxDim
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, width, height)
+      res(canvas.toDataURL('image/jpeg', 0.88))
+    }
+    img.onerror = () => res(dataUrl)
+    img.src = dataUrl
+  })
+}
+
 export default function ScanForm() {
   const nav = useNavigate()
   const fileRef = useRef(null)
@@ -54,11 +83,12 @@ export default function ScanForm() {
     try {
       let dataUrl = null
       if (file) {
-        dataUrl = await new Promise((res, rej) => {
+        const rawUrl = await new Promise((res, rej) => {
           const r = new FileReader()
           r.onload = () => res(r.result); r.onerror = rej
           r.readAsDataURL(file)
         })
+        dataUrl = await resizeImage(rawUrl)
         setPreview(dataUrl)
       }
 
@@ -72,7 +102,7 @@ export default function ScanForm() {
       setStage('review')
     } catch (e) {
       tick.forEach(clearTimeout)
-      setErr(String(e.message || e))
+      setErr(explain('Vision OCR', e))
       setStage('pick')
     }
   }
@@ -116,11 +146,23 @@ export default function ScanForm() {
           <>
             {!hasOCR() && (
               <Notice tone="due" title="No OCR key configured">
-                Put a Grok key in <code>.env</code> as <code>VITE_GROK_API_KEY</code> to read a real
+                Add a Grok key (<code>VITE_GROK_API_KEY</code>) or Gemini key (<code>VITE_GEMINI_API_KEY</code>) to <code>.env</code> to read a real
                 photograph. Without one this walks through a worked sample so the flow can still be shown.
               </Notice>
             )}
-            {err && <Notice tone="late" title="That did not work">{err}</Notice>}
+            {err && (
+              <div className="rounded-2xl bg-late-soft border border-late/25 p-4"
+                style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6)' }}>
+                <div className="flex items-center gap-1.5 font-bold text-[14px] text-late">
+                  <Icon name="alert" size={16} /> {err.title}
+                </div>
+                <p className="text-[13px] text-ink-2 mt-2 leading-relaxed whitespace-pre-line">{err.fix}</p>
+                <div className="grid grid-cols-2 gap-2.5 mt-3.5">
+                  <Btn size="sm" onClick={() => nav('/asha/diagnostics')}>Check the keys</Btn>
+                  <Btn size="sm" tone="ghost" onClick={() => run(null)}>Use the sample</Btn>
+                </div>
+              </div>
+            )}
 
             <div className="raise rounded-3xl p-8 text-center">
               <div className="sink w-20 h-20 mx-auto rounded-3xl grid place-items-center text-brand mb-4">
@@ -167,10 +209,22 @@ export default function ScanForm() {
 
         {stage === 'review' && doc && (
           <>
-            {doc.simulated && (
+            {doc.simulated ? (
               <Notice tone="due" title="Worked sample">
-                No Grok key is set, so this is a fixed example rather than your photograph.
+                No OCR key is set, so this is a fixed example rather than your photograph.
               </Notice>
+            ) : (
+              <div className="flex items-center gap-2 px-1 text-[12px]">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-soft text-brand font-medium">
+                  <Icon name="check" size={13} stroke={2.4} />
+                  Read by {doc.provider === 'gemini' ? 'Gemini Flash' : 'Grok Vision'}
+                </span>
+                {doc.fallbackFrom && (
+                  <span className="text-ink-3 text-[11.5px]">
+                    (Grok failed · recovered via Gemini vision)
+                  </span>
+                )}
+              </div>
             )}
 
             <div className="raise rounded-2xl p-4">

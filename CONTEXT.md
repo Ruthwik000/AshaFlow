@@ -279,6 +279,30 @@ capture-to-five-outputs flow must work with venue wifi off — that is the claim
 > One or two lines per change. **Newest first.** Date · what changed · why.
 > Add an entry every time anything in this repo changes.
 
+### 2026-09-18 — key diagnostics
+- **Reported: OCR failed with `400 Incorrect API key provided`.** That is xAI
+  refusing the key, not a code fault — the request reached them and came back
+  with a JSON body. The code was right; the feedback was useless.
+- **`explain(provider, err)`** in `ai/config.js` classifies a failure into
+  auth / quota / model / network / timeout / parse / server and returns what to
+  do about it. Ten real error shapes are covered and checked. The auth message
+  leads with the usual cause: **Vite reads `.env` only at startup, so a key
+  added while the dev server was running is not in the page.**
+- **`/asha/diagnostics`** — "Test the connections". Per provider it shows
+  whether a key reached the page at all (prefix, suffix, length — never the key),
+  which model is being asked for, and the result of a live `GET /v1/models`
+  call. On success it lists the models the key can actually use and **says so
+  when the configured model is not among them** — which is the second most
+  common cause, since model names change.
+- Keys are sanitised on read (trim, strip wrapping quotes) and a key containing
+  whitespace is flagged, since a pasted line break is easy to miss.
+- Provider errors now keep the provider's own wording (`error.message` pulled
+  out of the JSON) instead of a truncated blob, which is what makes
+  classification possible.
+- The scan screen shows the classified failure with two buttons — "Check the
+  keys" and "Use the sample" — instead of dumping raw JSON at the user.
+- Smoke test now 40 routes x 2 configs.
+
 ### 2026-09-18 — Gemini + Grok, real OCR, scan-to-reusable-form
 - **Provider chain.** Chat: **Gemini → Grok → the offline engine.** OCR: **Grok
   vision → a worked sample.** The offline engine is not a degraded mode — it is

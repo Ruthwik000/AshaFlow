@@ -83,12 +83,17 @@ export default function More() {
             ))}
           </List>
           <div className="mt-2.5">
+            <Btn full tone="ghost" size="md" onClick={() => nav('/asha/diagnostics')}>
+              <Icon name="shield" size={17} /> Test the connections
+            </Btn>
+          </div>
+          <div className="mt-2.5">
             <Notice tone={hasAnyChat() ? 'info' : 'due'}
               title={hasAnyChat() ? 'Chat order' : 'No model key set'}>
               {hasAnyChat()
                 ? 'Gemini answers first. If it fails, Grok. If both fail or there is no signal, the offline engine answers from her record — so a question is never left unanswered.'
                 : 'Add VITE_GEMINI_API_KEY and VITE_GROK_API_KEY to .env. Everything still works without them: the offline engine reads her record, and scanning walks a worked sample.'}
-              {hasOCR() ? ' Scanning a paper form uses Grok vision.' : ' Scanning needs a Grok key to read a real photograph.'}
+              {hasOCR() ? ' Scanning a paper form uses Grok vision (with Gemini fallback).' : ' Scanning needs a Grok or Gemini key to read a real photograph.'}
             </Notice>
           </div>
           <p className="text-[11.5px] text-ink-3 mt-2 px-1 leading-relaxed">

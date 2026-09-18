@@ -13,7 +13,7 @@ const ROUTES = [
   '/officer', '/officer/add-programme',
   '/asha/forms', '/asha/forms/PMMVY-1A', '/asha/forms/PMMVY-1A/fill/m1',
   '/asha/forms/JSY-CLAIM/fill/m5', '/asha/forms/ICDS-REG/fill/m4', '/asha/submissions',
-  '/officer/forms', '/asha/families/new', '/asha/people/new', '/asha/people/new?form=PMMVY-1A',
+  '/officer/forms', '/asha/diagnostics', '/asha/families/new', '/asha/people/new', '/asha/people/new?form=PMMVY-1A',
   '/woman', '/woman/records', '/woman/schemes', '/woman/ask', '/woman/me',
   '/woman/scheme/PMMVY',
 ]

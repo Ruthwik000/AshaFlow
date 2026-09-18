@@ -1,4 +1,4 @@
-import { geminiChat, grokChat, grokVision } from './providers'
+import { geminiChat, grokChat, grokVision, geminiVision } from './providers'
 import { hasGemini, hasGrok, hasOCR, hasAnyChat } from './config'
 import { PATH_LABELS } from '../data/canonical'
 
@@ -6,7 +6,7 @@ import { PATH_LABELS } from '../data/canonical'
    The fallback chain.
 
        chat:  Gemini  →  Grok  →  the offline engine
-       OCR:   Grok vision  →  a worked sample
+       OCR:   Grok vision  →  Gemini vision  →  a worked sample
 
    The offline engine is not a degraded mode. It reads her actual record and
    is the only path that works with no signal, which is most of the time in a
@@ -123,15 +123,60 @@ Rules:
 CANONICAL_PATHS
 `.trim()
 
+function parseFormJson(raw) {
+  if (!raw || typeof raw !== 'string') throw new Error('Empty response from vision model')
+  const cleaned = raw.replace(/^```(?:json)?/i, '').replace(/```\s*$/, '').trim()
+  const start = cleaned.indexOf('{')
+  const end = cleaned.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('Vision model did not return a valid JSON object')
+  }
+  const parsed = JSON.parse(cleaned.slice(start, end + 1))
+  if (!parsed?.sections?.length) throw new Error('No fields were read from the image')
+  return parsed
+}
+
 export async function extractFormFromImage(dataUrl) {
   if (!hasOCR()) return { simulated: true }
   const prompt = OCR_PROMPT.replace('CANONICAL_PATHS', Object.keys(PATH_LABELS).join(', '))
-  const raw = await grokVision({ prompt, dataUrl })
-  const json = raw.replace(/^```(?:json)?/i, '').replace(/```\s*$/, '').trim()
-  const start = json.indexOf('{')
-  const parsed = JSON.parse(json.slice(start, json.lastIndexOf('}') + 1))
-  if (!parsed?.sections?.length) throw new Error('no fields were read from the image')
-  return { ...parsed, simulated: false }
+
+  let grokErr = null
+
+  // 1. Try Grok Vision first if available
+  if (hasGrok()) {
+    try {
+      const raw = await grokVision({ prompt, dataUrl })
+      const parsed = parseFormJson(raw)
+      return { ...parsed, simulated: false, provider: 'grok' }
+    } catch (e) {
+      grokErr = e
+      console.warn('Grok vision OCR failed, falling back to Gemini vision:', e)
+    }
+  }
+
+  // 2. Fallback to Gemini Vision if available
+  if (hasGemini()) {
+    try {
+      const raw = await geminiVision({ prompt, dataUrl })
+      const parsed = parseFormJson(raw)
+      return {
+        ...parsed,
+        simulated: false,
+        provider: 'gemini',
+        fallbackFrom: grokErr ? 'grok' : null,
+        grokError: grokErr?.message,
+      }
+    } catch (e) {
+      console.warn('Gemini vision OCR failed:', e)
+      if (grokErr) {
+        throw new Error(`Grok failed (${grokErr.message}); Gemini fallback also failed (${e.message})`)
+      }
+      throw e
+    }
+  }
+
+  if (grokErr) throw grokErr
+  return { simulated: true }
 }
 
 export { hasGemini, hasGrok, hasOCR, hasAnyChat }
