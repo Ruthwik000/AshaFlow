@@ -15,8 +15,24 @@ rest, and produces five structured programme records.
 
 ```bash
 npm install
-npm run dev        # open the printed network URL on your phone
+cp .env.example .env     # optional — put your model keys in it
+npm run dev              # open the printed network URL on your phone
 ```
+
+**The app works with no keys at all.** Chat falls back to an offline engine that
+reads the household record, and scanning walks a worked sample. Keys add:
+
+| Key | Adds |
+|---|---|
+| `VITE_GEMINI_API_KEY` | first choice for chat answers |
+| `VITE_GROK_API_KEY` | chat fallback when Gemini fails, and OCR on a photographed form |
+| `VITE_AI_PROXY` | your own backend holds the keys instead of the browser |
+
+⚠ Vite inlines `VITE_*` values into the built JavaScript. A key in `.env` is
+visible to anyone who opens the page — fine for a prototype with throwaway keys,
+not for real use. `VITE_AI_PROXY` is the way out.
+
+Check what is configured at any time under **More → Models**.
 
 Build and test the PWA properly:
 

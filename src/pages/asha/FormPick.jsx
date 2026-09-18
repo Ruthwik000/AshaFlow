@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { db } from '../../db/db'
-import { formByCode } from '../../data/schemeForms'
+import { findForm } from '../../data/formRegistry'
 import Icon from '../../components/Icon'
 import { TopBar, Card, Section, List, Row, Notice, Empty } from '../../components/ui'
 
@@ -14,9 +14,11 @@ const FITS = {
 export default function FormPick() {
   const { code } = useParams()
   const nav = useNavigate()
-  const form = formByCode[code]
+  const [form, setForm] = useState(undefined)
   const [rows, setRows] = useState([])
   const [showAll, setShowAll] = useState(false)
+
+  useEffect(() => { findForm(code).then(setForm) }, [code])
 
   useEffect(() => {
     Promise.all([db.households.toArray(), db.members.toArray()]).then(([hs, ms]) =>
@@ -24,6 +26,7 @@ export default function FormPick() {
     )
   }, [])
 
+  if (form === undefined) return <div className="p-6 text-ink-3">Loading…</div>
   if (!form) return <div className="p-6 text-ink-3">Form not found</div>
 
   const fit = FITS[form.appliesTo] || FITS.any

@@ -26,18 +26,39 @@ db.version(2).stores({
   learnedFacts: 'key, memberId',
 })
 
+db.version(3).stores({
+  households: 'id, village, houseNo',
+  members: 'id, householdId, role',
+  encounters: 'id, householdId, memberId, type, createdAt, synced',
+  outbox: 'encounterId, queuedAt',
+  earnings: 'id, encounterId, date, claimed',
+  tasks: 'id, householdId, level',
+  meta: 'key',
+  formSubmissions: 'id, formCode, memberId, householdId, createdAt, synced',
+  learnedFacts: 'key, memberId',
+  // a form built from a photographed page, reusable from then on
+  customForms: 'code, name, createdAt',
+})
+
+const SEED_VERSION = 2
+
 export async function ensureSeeded() {
   const seeded = await db.meta.get('seeded')
-  if (seeded) return
+  if (seeded?.version === SEED_VERSION) return
+  if (seeded) {                      // seed data changed — replace it, keep field additions
+    await Promise.all([db.households.clear(), db.members.clear(),
+                       db.tasks.clear(), db.earnings.clear()])
+    await db.encounters.where('id').startsWith('e-past-').delete()
+  }
   await db.transaction('rw', db.households, db.members, db.tasks, db.encounters, db.earnings, db.meta, async () => {
     await db.households.bulkPut(households)
     await db.members.bulkPut(members)
     await db.tasks.bulkPut(tasks)
     await db.encounters.bulkPut(pastEncounters.map(e => ({
-      ...e, createdAt: e.date, synced: 1, facts: {}, outputCount: e.outputs,
+      ...e, createdAt: e.date, synced: 1, facts: e.facts || {}, outputCount: e.outputs,
     })))
     await db.earnings.bulkPut(earningsHistory.map(e => ({ ...e, encounterId: null })))
-    await db.meta.put({ key: 'seeded', value: true, asha: ASHA })
+    await db.meta.put({ key: 'seeded', value: true, version: SEED_VERSION, asha: ASHA })
   })
 }
 
@@ -109,6 +130,23 @@ export async function createMember(d) {
   }
   return row
 }
+
+/** Save a form read off a paper page so it can be used again and again. */
+export async function saveCustomForm(form) {
+  const code = form.code || 'SCAN-' + Date.now().toString(36).toUpperCase().slice(-6)
+  const row = {
+    ...form, code,
+    createdAt: new Date().toISOString(),
+    source: form.source || 'scan',
+    version: form.version || 1,
+  }
+  await db.customForms.put(row)
+  return row
+}
+
+export const listCustomForms = () => db.customForms.toArray()
+export const getCustomForm = code => db.customForms.get(code)
+export const deleteCustomForm = code => db.customForms.delete(code)
 
 /** Values a human typed into a form, kept so no later form asks again. */
 export async function getLearned(memberId) {

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { ASHA } from '../data/seed'
+import { READY, LOCALE } from '../i18n/langs'
 
 const read = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v) } catch { return d }
@@ -10,7 +11,8 @@ export const useStore = create((set, get) => ({
   asha: ASHA,
   loggedIn: read('af.loggedIn', false),
   role: read('af.role', 'asha'),
-  lang: ['en', 'hi'].includes(read('af.lang', 'en')) ? read('af.lang', 'en') : 'en',
+  // kept in step with i18n's reviewed list; an unreviewed or stale value falls back
+  lang: READY.includes(read('af.lang', 'en')) ? read('af.lang', 'en') : 'en',
   womanMode: ['pregnant', 'mother'].includes(read('af.womanMode', 'pregnant'))
     ? read('af.womanMode', 'pregnant') : 'pregnant',
   // which scheme forms the officer has published to the field
@@ -19,6 +21,10 @@ export const useStore = create((set, get) => ({
   demoOffline: read('af.demoOffline', false),
   bigText: read('af.bigText', false),
   speak: read('af.speak', true),
+  // Which language the LIVE VOICE agent speaks. Deliberately separate from the
+  // interface language: the UI ships only in reviewed English and Hindi, but the
+  // agent holds a spoken conversation in Telugu too.
+  voiceLang: ['en', 'hi', 'te'].includes(read('af.voiceLang', 'en')) ? read('af.voiceLang', 'en') : 'en',
 
   // the encounter currently being captured
   draft: null,
@@ -30,6 +36,7 @@ export const useStore = create((set, get) => ({
   toggleBigText: () => { const v = !get().bigText; write('af.bigText', v); set({ bigText: v }) },
   toggleSpeak: () => { const v = !get().speak; write('af.speak', v); set({ speak: v }) },
   setLang: l => { write('af.lang', l); set({ lang: l }) },
+  setVoiceLang: l => { write('af.voiceLang', l); set({ voiceLang: l }) },
   setWomanMode: m => { write('af.womanMode', m); set({ womanMode: m }) },
   toggleForm: code => {
     const cur = get().publishedForms
@@ -63,7 +70,7 @@ export function say(text) {
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
     const l = useStore.getState().lang
-    u.lang = { hi: 'hi-IN', mr: 'mr-IN', bn: 'bn-IN', ta: 'ta-IN', te: 'te-IN' }[l] || 'en-IN'
+    u.lang = LOCALE[l] || 'en-IN'
     u.rate = 0.92
     window.speechSynthesis.speak(u)
   } catch { /* speech is a nicety, never a dependency */ }

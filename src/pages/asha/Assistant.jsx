@@ -1,12 +1,20 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ASSISTANT_PROMPTS } from '../../data/seed'
+import { ASSISTANT_PROMPTS, ASSISTANT_ANSWERS } from '../../data/seed'
 import { useStore, say } from '../../store/useStore'
+import { askModel, hasAnyChat } from '../../ai'
+import { ASHA } from '../../data/seed'
 import { useT } from '../../i18n'
 import Icon from '../../components/Icon'
 import { AppBar, Btn, Notice } from '../../components/ui'
-import { chatWithGemini, hasGeminiKey } from '../../engine/gemini'
 
+const pick = q => {
+  for (const [k, v] of Object.entries(ASSISTANT_ANSWERS)) {
+    if (k === 'default') continue
+    if (v.match?.test(q)) return v
+  }
+  return ASSISTANT_ANSWERS.default
+}
 const clock = () => new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
 
 function Mark({ size = 30 }) {
@@ -18,6 +26,17 @@ function Mark({ size = 30 }) {
   )
 }
 
+/* The worker's assistant is grounded in the programme rules rather than one
+   person's record, so it gets a small fixed context of its own. */
+const ASHA_CTX = {
+  mode: 'pregnant', name: ASHA.name, age: '—', village: ASHA.village, house: '—',
+  asha: ASHA.name, ashaPhone: '98765 21140', anm: 'Kavita Singh',
+  phc: 'Rampur Primary Health Centre', rchId: '—',
+  anc: [], vaccines: [], schemes: [], timeline: [],
+  nextVisit: { label: '—', date: '—', at: '—' }, paid: 0, owed: 0,
+  danger: [{ label: 'Bleeding' }, { label: 'Fits' }, { label: 'Baby not moving' }],
+}
+
 export default function Assistant() {
   const nav = useNavigate()
   const t = useT()
@@ -26,73 +45,39 @@ export default function Assistant() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [listening, setListening] = useState(false)
-  const [streamText, setStreamText] = useState('')
-  const [error, setError] = useState(null)
   const end = useRef(null)
-  const abortRef = useRef(null)
 
-  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [msgs, busy, streamText])
+  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [msgs, busy])
 
-  const apiReady = hasGeminiKey()
+  const push = m => setMsgs(x => [...x, { at: clock(), ...m }])
 
-  const send = useCallback(async (text) => {
+  const send = async text => {
     const q = (text ?? input).trim()
     if (!q || busy) return
-    setInput('')
-    setError(null)
+    setInput(''); push({ role: 'u', text: q }); setBusy(true)
 
-    const userMsg = { role: 'u', text: q, at: clock() }
-    setMsgs(prev => [...prev, userMsg])
-    setBusy(true)
-    setStreamText('')
-
-    if (!apiReady) {
-      // Fallback: show message about missing key
-      setTimeout(() => {
-        setMsgs(prev => [...prev, {
-          role: 'a', at: clock(),
-          text: 'The Gemini API key is not configured.\n\nTo enable live AI responses, add your key to the .env file:\n\nVITE_GEMINI_KEY=your_key_here\n\nThen restart the dev server.',
-        }])
-        setBusy(false)
-      }, 400)
-      return
+    const local = pick(q)
+    let out = { ...local, via: 'local' }
+    if (hasAnyChat()) {
+      try {
+        const r = await askModel(q, ASHA_CTX, t.lang)
+        if (r && !r.failed && r.text) out = { ...local, text: r.text, via: r.via }
+        else if (r?.failed) out = { ...out, tried: r.tried }
+      } catch { /* the offline answer stands */ }
     }
-
-    try {
-      const history = msgs.filter(m => m.role === 'u' || m.role === 'a')
-      const fullResponse = await chatWithGemini(history, q, (chunk) => {
-        setStreamText(chunk)
-      })
-      setStreamText('')
-      setMsgs(prev => [...prev, { role: 'a', text: fullResponse, at: clock() }])
-    } catch (err) {
-      setStreamText('')
-      let errMsg = 'Something went wrong. Please try again.'
-      if (err.message === 'GEMINI_KEY_MISSING') {
-        errMsg = 'API key not found. Add VITE_GEMINI_KEY to your .env file and restart the dev server.'
-      } else if (err.message === 'INVALID_KEY') {
-        errMsg = 'The API key is invalid. Please check your VITE_GEMINI_KEY in .env.'
-      } else if (err.message === 'RATE_LIMITED') {
-        errMsg = 'Too many requests. Please wait a moment and try again.'
-      }
-      setError(errMsg)
-      setMsgs(prev => [...prev, { role: 'a', text: errMsg, at: clock(), isError: true }])
-    } finally {
-      setBusy(false)
-    }
-  }, [input, busy, msgs, apiReady])
+    setTimeout(() => { push({ role: 'a', ...out }); setBusy(false) }, 300)
+  }
 
   const attach = () => {
-    const userMsg = { role: 'u', text: 'HBNC-day7-format.pdf', file: true, meta: 'PDF · 14 pages · 1.8 MB', at: clock() }
-    setMsgs(prev => [...prev, userMsg])
+    push({ role: 'u', text: 'HBNC-day7-format.pdf', file: true, meta: 'PDF · 14 pages · 1.8 MB' })
     setBusy(true)
     setTimeout(() => {
-      setMsgs(prev => [...prev, {
-        role: 'a', at: clock(),
+      push({
+        role: 'a',
         text: 'I read the form — 14 pages, 22 fields. It is the HBNC day-7 newborn visit format.\n\n18 of the 22 fields already map onto the record we hold, so a worker would be asked about 6 new things. The remaining 4 need a person to decide the mapping.',
         sources: ['HBNC-day7-format.pdf, pages 2–9'],
         actions: [{ label: 'Build a form from this PDF', to: '/asha/new-schema', icon: 'doc' }],
-      }])
+      })
       setBusy(false)
     }, 1500)
   }
@@ -100,7 +85,7 @@ export default function Assistant() {
   const mic = () => {
     if (listening) return setListening(false)
     setListening(true)
-    setTimeout(() => { setListening(false); send('Why has Sunita\u2019s payment not come?') }, 1800)
+    setTimeout(() => { setListening(false); send('Why has Sunita’s payment not come?') }, 1800)
   }
 
   const CAN = [
@@ -110,21 +95,13 @@ export default function Assistant() {
 
   return (
     <>
-      <AppBar title={t('assist.title')} sub={apiReady ? t('assist.sub') : 'API key needed'} />
+      <AppBar title={t('assist.title')} sub={t('assist.sub')} />
 
       <main className="flex-1 px-4 py-4 overflow-y-auto">
         {offline && (
           <div className="mb-4">
             <Notice tone="due" title={t('common.offline')}>
               The assistant needs a connection. Everything else keeps working offline.
-            </Notice>
-          </div>
-        )}
-
-        {!apiReady && !offline && (
-          <div className="mb-4">
-            <Notice tone="due" title="API key required">
-              Add your Gemini API key to <code className="font-mono text-[12px] bg-sunken px-1.5 py-0.5 rounded">.env</code> as <code className="font-mono text-[12px] bg-sunken px-1.5 py-0.5 rounded">VITE_GEMINI_KEY=your_key</code> and restart the server.
             </Notice>
           </div>
         )}
@@ -151,7 +128,7 @@ export default function Assistant() {
             <div className="mt-7">
               <div className="text-[13px] font-semibold text-ink-2 mb-2.5 px-0.5">{t('assist.try')}</div>
               <div className="space-y-2">
-                {(ASSISTANT_PROMPTS[t.lang] || ASSISTANT_PROMPTS.en).map(p => (
+                {(ASSISTANT_PROMPTS[t.lang] ?? ASSISTANT_PROMPTS.en ?? []).map(p => (
                   <button key={p} onClick={() => send(p)}
                     className="press raise w-full text-left rounded-2xl pl-4 pr-3 py-3.5 flex items-center gap-3">
                     <span className="text-[14px] text-ink flex-1 leading-snug">{p}</span>
@@ -189,7 +166,7 @@ export default function Assistant() {
               <div className="flex gap-2.5">
                 <Mark />
                 <div className="min-w-0 flex-1">
-                  <div className={`raise rounded-2xl rounded-tl-md px-4 py-3.5 ${m.isError ? 'border border-late/30' : ''}`}>
+                  <div className="raise rounded-2xl rounded-tl-md px-4 py-3.5">
                     <p className="text-[14.5px] text-ink leading-[1.62] whitespace-pre-line">
                       {m.text.replace(/\*\*/g, '')}
                     </p>
@@ -219,6 +196,12 @@ export default function Assistant() {
 
                   <div className="flex items-center gap-3 mt-1.5 pl-1">
                     <span className="text-[10.5px] text-ink-3 num">{m.at}</span>
+                    {m.via && (
+                      <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded
+                        ${m.via === 'local' ? 'bg-line-2 text-ink-3' : 'bg-brand-soft text-brand'}`}>
+                        {m.via === 'local' ? 'offline' : m.via}
+                      </span>
+                    )}
                     <button onClick={() => say(m.text.replace(/\*\*/g, ''))}
                       className="press flex items-center gap-1 text-[11px] font-semibold text-ink-3">
                       <Icon name="assist" size={12} /> {t('common.readAloud')}
@@ -229,24 +212,7 @@ export default function Assistant() {
             </div>
           ))}
 
-          {/* Streaming response */}
-          {busy && streamText && (
-            <div className="anim-up">
-              <div className="flex gap-2.5">
-                <Mark />
-                <div className="min-w-0 flex-1">
-                  <div className="raise rounded-2xl rounded-tl-md px-4 py-3.5">
-                    <p className="text-[14.5px] text-ink leading-[1.62] whitespace-pre-line">
-                      {streamText.replace(/\*\*/g, '')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Typing indicator (only when no stream text yet) */}
-          {busy && !streamText && (
+          {busy && (
             <div className="flex gap-2.5 anim-up">
               <Mark />
               <div className="raise rounded-2xl rounded-tl-md px-4 py-4 flex items-center gap-2">
@@ -284,9 +250,8 @@ export default function Assistant() {
             className="sink flex-1 min-h-[50px] rounded-2xl px-4 text-[15px] placeholder:text-ink-3/60" />
           <button onClick={input.trim() ? () => send() : mic}
             aria-label={input.trim() ? 'Send' : 'Speak'}
-            disabled={busy}
             className={`press w-[50px] h-[50px] shrink-0 rounded-2xl grid place-items-center text-white
-              ${listening ? 'btn-danger' : 'btn-solid'} ${busy ? 'opacity-50' : ''}`}>
+              ${listening ? 'btn-danger' : 'btn-solid'}`}>
             <Icon name={input.trim() ? 'chevron' : 'assist'} size={20} stroke={2.1}
               className={input.trim() ? '-rotate-90' : ''} />
           </button>

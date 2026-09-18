@@ -3,14 +3,8 @@ import { useStore } from '../store/useStore'
 /* A health app cannot ship machine-translated clinical wording. English and
    Hindi are complete and reviewed here; the rest are listed as pending a
    native-speaker review rather than shipped half-done. */
-export const LANGS = [
-  { code: 'en', label: 'English',  native: 'English',  ready: true },
-  { code: 'hi', label: 'Hindi',    native: 'हिन्दी',    ready: true },
-  { code: 'mr', label: 'Marathi',  native: 'मराठी',     ready: false },
-  { code: 'bn', label: 'Bengali',  native: 'বাংলা',     ready: false },
-  { code: 'ta', label: 'Tamil',    native: 'தமிழ்',     ready: false },
-  { code: 'te', label: 'Telugu',   native: 'తెలుగు',    ready: false },
-]
+export { LANGS, READY, LOCALE } from './langs'
+import { LOCALE } from './langs'
 
 const EN = {
   appName: 'ASHAFlow',
@@ -140,7 +134,71 @@ const HI = {
   'settings.comingSoon': 'मूल वक्ता की जाँच बाकी',
 }
 
-const DICT = { en: EN, hi: HI }
+const TE = {
+  appName: 'ఆశాఫ్లో',
+  tagline: 'ఒక సందర్శన. ఒకసారి నమోదు. ఐదు వ్యవస్థలు.',
+
+  'nav.home': 'హోమ్', 'nav.families': 'కుటుంబాలు', 'nav.add': 'చేర్చు',
+  'nav.assist': 'సహాయకుడు', 'nav.earnings': 'సంపాదన',
+
+  'common.back': 'వెనక్కి', 'common.next': 'తరువాత', 'common.done': 'పూర్తయింది',
+  'common.save': 'భద్రపరచు', 'common.cancel': 'రద్దు', 'common.close': 'మూసివేయి',
+  'common.yes': 'అవును', 'common.no': 'కాదు', 'common.online': 'ఆన్‌లైన్',
+  'common.offline': 'ఆఫ్‌లైన్', 'common.settings': 'సెట్టింగ్‌లు',
+  'common.profile': 'ప్రొఫైల్', 'common.language': 'భాష',
+  'common.signOut': 'సైన్ అవుట్', 'common.readAloud': 'చదివి వినిపించు',
+  'common.due': 'రావలసినది', 'common.overdue': 'ఆలస్యం', 'common.sent': 'పంపబడింది',
+
+  'home.greeting': 'నమస్తే', 'home.toVisit': 'వెళ్ళాలి',
+  'home.overdue': 'ఆలస్యం', 'home.toSend': 'పంపాలి',
+  'home.addEntry': 'కొత్త నమోదు',
+  'home.addEntrySub': 'ఫారం నింపండి · స్కాన్ చేయండి · కొత్తది చేయండి',
+  'home.scanForm': 'ఫారం స్కాన్', 'home.askAssistant': 'సహాయకుడిని అడగండి',
+  'home.reminders': 'గుర్తు చేయి', 'home.visitToday': 'ఈ రోజు సందర్శనలు',
+  'home.urgentFirst': 'ముఖ్యమైనవి ముందు.',
+  'home.thisMonth': 'ఈ నెల', 'home.allSent': 'అన్నీ పంపబడ్డాయి',
+  'home.waiting': 'సిగ్నల్ కోసం ఎదురుచూపు', 'home.unclaimed': 'క్లెయిమ్ చేయనివి',
+  'home.govPortal': 'ప్రభుత్వ పోర్టల్',
+  'home.govPortalSub': 'రుజువులు, క్లెయిమ్‌లు పంపండి',
+  'home.counter': 'నకిలీ లెక్క', 'home.counterSub': '87 → 11 లెక్క',
+  'home.settingsMore': 'సెట్టింగ్‌లు, ఇతరాలు', 'home.open': 'తెరువు',
+
+  'add.title': 'కొత్త నమోదు', 'add.sub': 'మూడు మార్గాలు',
+  'add.existing': 'ఉన్న ఫారం నింపండి', 'add.existingSub': 'రోజువారీ సందర్శన',
+  'add.scan': 'కాగితపు ఫారం స్కాన్ చేయండి', 'add.scanSub': 'కెమెరా లేదా PDF',
+  'add.new': 'కొత్త ఫారం తయారు చేయండి', 'add.newSub': 'ఇంకా లేని కార్యక్రమం',
+
+  'assist.title': 'సహాయకుడు', 'assist.sub': 'పథకాలు, ఫారాలు, మీ పని',
+  'assist.empty': 'నేను ఎలా సహాయపడగలను?',
+  'assist.emptyBody': 'ఏ పథకం గురించైనా అడగండి, ప్రభుత్వ ఫారం పంపండి — నేను చదివి, దాని నుంచి నింపే స్క్రీన్ తయారు చేస్తాను.',
+  'assist.try': 'ఇలా అడిగి చూడండి', 'assist.placeholder': 'పథకం గురించి అడగండి…',
+  'assist.readFrom': 'దీని నుంచి చదివాను', 'assist.listening': 'వింటున్నాను…',
+  'assist.guard': 'పథకాలు, ప్రక్రియల ప్రశ్నలు మాత్రమే. వైద్య సలహా ఇవ్వదు, రికార్డును మార్చదు.',
+  'assist.canDo1': 'పథకం వివరించు', 'assist.canDo2': 'PDF చదువు',
+  'assist.canDo3': 'ఫారం తయారు చేయి', 'assist.canDo4': 'మాట్లాడండి లేదా రాయండి',
+  'assist.thinking': 'ఆలోచిస్తున్నాను',
+
+  'profile.title': 'ప్రొఫైల్', 'profile.thisMonth': 'ఈ నెల',
+  'profile.visits': 'సందర్శనలు', 'profile.households': 'కుటుంబాలు',
+  'profile.records': 'రికార్డులు', 'profile.earned': 'సంపాదన',
+  'profile.saved': 'రాత ఆదా', 'profile.verification': 'ధృవీకరణ',
+  'profile.whereYouWork': 'మీ పని ప్రాంతం', 'profile.reportTo': 'మీరు ఎవరికి నివేదిస్తారు',
+  'profile.payment': 'చెల్లింపు వివరాలు', 'profile.training': 'శిక్షణ',
+  'profile.documents': 'మీ పత్రాలు', 'profile.call': 'కాల్',
+
+  'settings.title': 'సెట్టింగ్‌లు', 'settings.display': 'ప్రదర్శన',
+  'settings.biggerText': 'పెద్ద అక్షరాలు', 'settings.biggerTextSub': 'ఎండలో చదవడం సులభం',
+  'settings.readAloudSub': 'ప్రతి ప్రశ్నపై వినే బటన్',
+  'settings.voice': 'వాయిస్', 'settings.data': 'డేటా, సింక్',
+  'settings.pretendOffline': 'ఆఫ్‌లైన్‌గా చూపించు',
+  'settings.pretendOfflineSub': 'ఆఫ్‌లైన్ పని చూపించడానికి',
+  'settings.privacy': 'గోప్యత', 'settings.otherPortals': 'ఇతర వీక్షణలు',
+  'settings.about': 'యాప్ గురించి', 'settings.reset': 'డెమో డేటా రీసెట్',
+  'settings.langNote': 'సమీక్షించిన అనువాదాలు మాత్రమే ఇస్తాము. ఆరోగ్య యాప్‌లో యంత్ర అనువాదం ఉండకూడదు.',
+  'settings.comingSoon': 'స్థానిక భాషా సమీక్ష పెండింగ్',
+}
+
+const DICT = { en: EN, hi: HI, te: TE }
 
 export function t(key, lang) {
   const d = DICT[lang] || DICT.en
@@ -156,6 +214,6 @@ export function useT() {
   return fn
 }
 
-export const dateLocale = lang => ({ hi: 'hi-IN', mr: 'mr-IN', bn: 'bn-IN', ta: 'ta-IN', te: 'te-IN' }[lang] || 'en-IN')
+export const dateLocale = lang => LOCALE[lang] || 'en-IN'
 
-export const speechLocale = lang => ({ hi: 'hi-IN', mr: 'mr-IN', bn: 'bn-IN', ta: 'ta-IN', te: 'te-IN' }[lang] || 'en-IN')
+export const speechLocale = lang => LOCALE[lang] || 'en-IN'

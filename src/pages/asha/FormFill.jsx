@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { db, getLearned, saveLearned, saveFormSubmission } from '../../db/db'
-import { formByCode } from '../../data/schemeForms'
+import { findForm } from '../../data/formRegistry'
 import { buildSubjectFacts, fillForm, formPayload } from '../../engine/prefill'
 import { QuestionInput } from '../../components/inputs'
 import Icon from '../../components/Icon'
@@ -23,7 +23,7 @@ const show = v => v === true ? 'Yes' : v === false ? 'No'
 export default function FormFill() {
   const { code, memberId } = useParams()
   const nav = useNavigate()
-  const form = formByCode[code]
+  const [form, setForm] = useState(undefined)
 
   const [ctx, setCtx] = useState(null)
   const [answers, setAnswers] = useState({})
@@ -33,8 +33,11 @@ export default function FormFill() {
   const [openSec, setOpenSec] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  useEffect(() => { findForm(code).then(setForm) }, [code])
+
   useEffect(() => {
-    (async () => {
+    if (!form) return
+    ;(async () => {
       const member = await db.members.get(memberId)
       if (!member) return setCtx({ missing: true })
       const [household, encounters, learned] = await Promise.all([
@@ -46,13 +49,14 @@ export default function FormFill() {
       setAskList(fillForm(form, facts, trace, {}).missing)
       setCtx({ member, household, facts, trace, learned })
     })()
-  }, [memberId])
+  }, [memberId, form])
 
   const filled = useMemo(
     () => ctx?.facts ? fillForm(form, ctx.facts, ctx.trace, answers) : null,
     [ctx, form, answers]
   )
 
+  if (form === undefined) return <div className="p-6 text-ink-3">Loading…</div>
   if (!form) return <div className="p-6 text-ink-3">Form not found</div>
   if (!ctx) return <div className="p-6 text-ink-3">Reading her record…</div>
   if (ctx.missing) return <div className="p-6 text-ink-3">Person not found</div>

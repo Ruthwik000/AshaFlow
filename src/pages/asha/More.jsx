@@ -4,7 +4,8 @@ import { useStore } from '../../store/useStore'
 import { resetAll } from '../../db/db'
 import { useT, LANGS } from '../../i18n'
 import Icon from '../../components/Icon'
-import { TopBar, Card, Section, List, Row, Btn, Toggle, Avatar, Pill, LangSheet } from '../../components/ui'
+import { TopBar, Card, Section, List, Row, Btn, Toggle, Avatar, Pill, LangSheet, Notice } from '../../components/ui'
+import { providerStatus, hasOCR, hasAnyChat } from '../../ai/config'
 
 function Switch({ icon, label, sub, on, onClick }) {
   return (
@@ -71,6 +72,32 @@ export default function More() {
           </List>
         </Section>
 
+        <Section title="Models">
+          <List>
+            {providerStatus().map(p => (
+              <Row key={p.id} icon={<Icon name={p.id === 'local' ? 'shield' : 'assist'} size={19} />}
+                title={p.label} sub={p.note}
+                right={<Pill level={p.state === 'on' ? 'done' : 'due'}>
+                  {p.state === 'on' ? 'Ready' : 'Not set'}
+                </Pill>} />
+            ))}
+          </List>
+          <div className="mt-2.5">
+            <Notice tone={hasAnyChat() ? 'info' : 'due'}
+              title={hasAnyChat() ? 'Chat order' : 'No model key set'}>
+              {hasAnyChat()
+                ? 'Gemini answers first. If it fails, Grok. If both fail or there is no signal, the offline engine answers from her record — so a question is never left unanswered.'
+                : 'Add VITE_GEMINI_API_KEY and VITE_GROK_API_KEY to .env. Everything still works without them: the offline engine reads her record, and scanning walks a worked sample.'}
+              {hasOCR() ? ' Scanning a paper form uses Grok vision.' : ' Scanning needs a Grok key to read a real photograph.'}
+            </Notice>
+          </div>
+          <p className="text-[11.5px] text-ink-3 mt-2 px-1 leading-relaxed">
+            Vite inlines these keys into the built JavaScript, so they are visible to anyone who
+            opens the page. Fine for a prototype with throwaway keys; before real use they move
+            behind the backend and <code>VITE_AI_PROXY</code> is set instead.
+          </p>
+        </Section>
+
         <Section title={t('settings.privacy')}>
           <List>
             <Row icon={<Icon name="shield" size={19} />} title="Consent records"
@@ -94,7 +121,7 @@ export default function More() {
         <Section title={t('settings.about')}>
           <Card className="p-4">
             <div className="flex items-center gap-2.5 mb-2.5">
-              <span className="btn-solid w-8 h-8 rounded-[10px] grid place-items-center text-white"><Icon name="mark" size={16} /></span>
+              <span className="btn-solid w-8 h-8 rounded-[10px] grid place-items-center text-white text-[13px] font-bold">◈</span>
               <div>
                 <div className="font-bold text-[15px]">ASHAFlow</div>
                 <div className="text-[11.5px] text-ink-3 num">version 0.2 · prototype</div>

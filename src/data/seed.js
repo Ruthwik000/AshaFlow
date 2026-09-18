@@ -57,7 +57,7 @@ export const households = [
 ]
 
 export const members = [
-  { id: 'm1', householdId: 'h14', name: 'Sunita Devi',  age: 24, sex: 'F', role: 'pregnant', lmp: ago(140) },
+  { id: 'm1', householdId: 'h14', name: 'Sunita Devi',  age: 24, sex: 'F', role: 'pregnant', lmp: ago(154) },
   { id: 'm2', householdId: 'h14', name: 'Ramesh Kumar', age: 28, sex: 'M', role: 'adult' },
   { id: 'm3', householdId: 'h14', name: 'Chotu',        age: 2,  sex: 'M', role: 'child' },
   { id: 'm4', householdId: 'h14', name: 'Kamla Devi',   age: 58, sex: 'F', role: 'elder' },
@@ -84,11 +84,32 @@ export const tasks = [
 
 export const pastEncounters = [
   { id: 'e-past-1', householdId: 'h14', memberId: 'm1', type: 'Pregnancy',
-    date: ago(28), summary: 'ANC-1 recorded', outputs: 5 },
-  { id: 'e-past-2', householdId: 'h14', memberId: null, type: 'Household survey',
-    date: ago(63), summary: 'Household register updated', outputs: 1 },
-  { id: 'e-past-3', householdId: 'h22', memberId: 'm6', type: 'Newborn',
-    date: ago(88), summary: 'HBNC day 3 visit', outputs: 4 },
+    date: ago(12), summary: 'ANC 3 check-up', outputs: 5,
+    facts: {
+      'person.name': 'Sunita Devi', 'person.age': 24,
+      'pregnancy.lmp': ago(154), 'pregnancy.gravida': 1,
+      'vitals.weight': 52, 'vitals.height': 151,
+      'vitals.bpSys': 118, 'vitals.bpDia': 78, 'vitals.hb': 9.8,
+      'tt.dose1Given': true, 'ifa.given': true, 'tb.cough2weeks': false,
+      'visit.consentGiven': true, __encounterType: 'Pregnancy',
+    } },
+  { id: 'e-past-2', householdId: 'h14', memberId: 'm1', type: 'Pregnancy',
+    date: ago(52), summary: 'ANC 2 check-up', outputs: 5,
+    facts: {
+      'person.name': 'Sunita Devi', 'person.age': 24,
+      'pregnancy.lmp': ago(154), 'pregnancy.gravida': 1,
+      'vitals.weight': 51, 'vitals.height': 151,
+      'vitals.bpSys': 120, 'vitals.bpDia': 80, 'vitals.hb': 9.9,
+      'visit.consentGiven': true, __encounterType: 'Pregnancy',
+    } },
+  { id: 'e-past-3', householdId: 'h14', memberId: null, type: 'Household survey',
+    date: ago(63), summary: 'Household register updated', outputs: 1, facts: {} },
+  { id: 'e-past-4', householdId: 'h22', memberId: 'm6', type: 'Newborn',
+    date: ago(84), summary: 'Newborn home visit, day 7', outputs: 4,
+    facts: {
+      'person.name': 'Aarav', 'child.birthWeight': 2.9,
+      'vitals.weight': 3.1, 'visit.consentGiven': true, __encounterType: 'Newborn',
+    } },
 ]
 
 export const earningsHistory = [
@@ -333,6 +354,7 @@ export const PROFILE = {
 export const WOMAN = {
   pregnant: {
     mode: 'pregnant',
+    memberId: 'm1', householdId: 'h14',   // the same rows the ASHA works with
     name: 'Sunita Devi', age: 24, houseNo: '14', village: 'Rampur',
     husband: 'Ramesh Kumar', mobile: '98765 43210',
     rchId: 'RCH-RAM-48210', abha: '12-3456-7890-1234',
@@ -344,6 +366,7 @@ export const WOMAN = {
   },
   mother: {
     mode: 'mother',
+    memberId: 'm5', householdId: 'h22', babyId: 'm6',
     name: 'Rekha Kumari', age: 26, houseNo: '22', village: 'Rampur',
     husband: 'Mohan Lal', mobile: '98122 33445',
     rchId: 'RCH-RAM-47166', abha: '12-9911-2233-4455',

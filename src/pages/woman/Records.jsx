@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { WOMAN, WOMAN_TIMELINE, TIMELINE_KINDS } from '../../data/seed'
+import { useSubject } from '../../hooks/useSubject'
+import { TIMELINE_KINDS } from '../../data/seed'
 import Icon from '../../components/Icon'
 import WomanBar from '../../components/WomanBar'
 import { Card, Btn, Notice, Empty, rupee, fmtDate } from '../../components/ui'
@@ -19,8 +20,9 @@ export default function Records() {
   const [filter, setFilter] = useState(sp.get('filter') || 'all')
   const [open, setOpen] = useState(null)
 
-  const w = WOMAN[mode]
-  const all = WOMAN_TIMELINE[mode]
+  const [subject] = useSubject(mode)
+  if (!subject) return <div className="p-6 text-ink-3">Reading your record…</div>
+  const all = subject.timeline
   const rows = filter === 'all' ? all : all.filter(r => r.kind === filter)
   const available = new Set(all.map(r => r.kind))
 
@@ -58,12 +60,18 @@ export default function Records() {
                     <Icon name={k.icon} size={18} />
                   </span>
 
-                  <Card className="flex-1 min-w-0 overflow-hidden">
+                  <Card className={`flex-1 min-w-0 overflow-hidden ${r.fresh ? '!border-brand/40' : ''}`}>
                     <button onClick={() => setOpen(isOpen ? null : r.id)}
                       className="press w-full text-left p-4">
                       <div className="flex items-start gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className="text-[11.5px] text-ink-3 num">{fmtDate(r.date)} · {k.label}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11.5px] text-ink-3 num">{fmtDate(r.date)} · {k.label}</span>
+                            {r.fresh && (
+                              <span className="text-[9.5px] font-bold uppercase tracking-wide
+                                               bg-brand-soft text-brand px-1.5 py-0.5 rounded">New</span>
+                            )}
+                          </div>
                           <div className="font-bold text-[15px] leading-tight mt-1">{r.title}</div>
                           <div className="text-[12.5px] text-ink-2 mt-1">{r.by}</div>
                           {r.amount > 0 && (

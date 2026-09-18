@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { db, createMember } from '../../db/db'
-import { formByCode } from '../../data/schemeForms'
+import { findForm } from '../../data/formRegistry'
 import Icon from '../../components/Icon'
 import { TopBar, Card, Btn, Field, TextField, Chips, Notice, List, Row } from '../../components/ui'
 
@@ -17,7 +17,7 @@ export default function NewPerson() {
   const nav = useNavigate()
   const [sp] = useSearchParams()
   const formCode = sp.get('form')
-  const form = formCode ? formByCode[formCode] : null
+  const [form, setForm] = useState(null)
   const preHousehold = sp.get('household')
 
   const [households, setHouseholds] = useState([])
@@ -28,6 +28,7 @@ export default function NewPerson() {
   const set = (k, v) => setD(x => ({ ...x, [k]: v }))
 
   useEffect(() => { db.households.toArray().then(setHouseholds) }, [])
+  useEffect(() => { if (formCode) findForm(formCode).then(setForm) }, [formCode])
 
   const ready = householdId && d.name.trim() && d.age && d.role
   const isBaby = d.role === 'infant' || d.role === 'child'

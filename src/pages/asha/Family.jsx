@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { db } from '../../db/db'
+import { useStore } from '../../store/useStore'
+import { WOMAN } from '../../data/seed'
 import { ENROLMENTS, PROOFS } from '../../data/seed'
 import { TopBar, Card, Section, List, Row, Btn, Pill, Notice, fmtDate, daysFromNow } from '../../components/ui'
 import Icon from '../../components/Icon'
@@ -15,6 +17,7 @@ const TABS = [['schemes', 'Schemes'], ['proofs', 'Proofs'], ['people', 'People']
 export default function Family() {
   const { id } = useParams()
   const nav = useNavigate()
+  const setWomanMode = useStore(s => s.setWomanMode)
   const [d, setD] = useState(null)
   const [tab, setTab] = useState('schemes')
 
@@ -118,7 +121,8 @@ export default function Family() {
                 </div>
                 {(p.state === 'missing' || p.state === 'mismatch') && (
                   <Btn size="sm" tone="ghost" className="mt-3 w-full">
-                    <span className="inline-flex items-center gap-1.5"><Icon name="camera" size={15} />{p.state === 'missing' ? 'Capture this document' : 'Replace it'}</span>
+                    <span className="inline-flex items-center gap-1.5"><Icon name="camera" size={15} />
+                      {p.state === 'missing' ? 'Capture this document' : 'Replace it'}</span>
                   </Btn>
                 )}
               </Card>
@@ -134,11 +138,21 @@ export default function Family() {
         {tab === 'people' && (
           <>
             <List>
-              {m.map(p => (
-                <Row key={p.id} icon={<Icon name={ROLE_ICON[p.role] || 'user'} size={18} />}
-                  title={p.name}
-                  sub={`${p.age === 0 ? `${p.dob ? Math.round((Date.now() - new Date(p.dob)) / 2629800000) : 0} months` : `${p.age} years`} · ${p.role} · ${enrol.filter(x => x.memberId === p.id).length} schemes`} />
-              ))}
+              {m.map(p => {
+                const asBeneficiary = Object.entries(WOMAN)
+                  .find(([, v]) => v.memberId === p.id)?.[0]
+                return (
+                  <Row key={p.id} icon={<Icon name={ROLE_ICON[p.role] || 'user'} size={18} />}
+                    title={p.name}
+                    sub={`${p.age === 0 ? `${p.dob ? Math.round((Date.now() - new Date(p.dob)) / 2629800000) : 0} months` : `${p.age} years`} · ${p.role} · ${enrol.filter(x => x.memberId === p.id).length} schemes`}
+                    right={asBeneficiary
+                      ? <Btn size="sm" tone="ghost"
+                          onClick={() => { setWomanMode(asBeneficiary); nav('/woman') }}>
+                          Her portal
+                        </Btn>
+                      : undefined} />
+                )
+              })}
             </List>
             <Btn full tone="ghost" size="md" className="mt-3"
               onClick={() => nav(`/asha/people/new?household=${h.id}`)}>

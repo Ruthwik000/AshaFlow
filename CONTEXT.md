@@ -69,25 +69,6 @@ Worked example: one answer — `pregnancy.lmp = 2 May 2026` — fills 18 fields
 (EDD, gestational age, ANC 1–4 windows, Td schedule, the baby's whole first-year
 NIS immunisation calendar, and the HMIS row it increments).
 
-### All six visit types, same engine
-
-Every tile on the visit-type screen runs `planEncounter()` against the same five
-schema files, filtered by the encounter type. Measured on a household that has
-been visited before, with a 24-year-old subject:
-
-| Visit | Instrument the wording comes from | Entries | Asked |
-|---|---|---:|---:|
-| Pregnancy | RCH registration + MCP card | 87 | 11 |
-| Newborn | HBNC mother-and-newborn card | 71 | 15 |
-| Child vaccine | MCP card immunisation page / U-WIN | 51 | 8 |
-| Health check | CBAC Part A + Part B | 68 | 10 (21 at age 30+) |
-| Illness | IDSP syndromic line list | 47 | 8 |
-| Household survey | Village / eligible-couple register | 45 | 10 |
-
-The Health check row is the honest one: a 24-year-old skips all of CBAC Part A,
-so the form collapses to ten questions; a 52-year-old answers the full
-twenty-one, because the checklist genuinely asks that much.
-
 Time model: **6.5 seconds per field entry**. That constant is a *guess* — it is
 in `src/pages/asha/Proof.jsx` and must be replaced with a real stopwatch result
 before the claim is made publicly.
@@ -142,8 +123,8 @@ problem statement explicitly warns against adding a monitoring burden.
 - FastAPI backend, PostgreSQL + pgvector, the four LangChain agents
 - Voice **input** (speaker output is in; `speechSynthesis`, no dependency)
 - Register photo OCR
-- Voice **input**, register photo OCR against a real engine, and the FastAPI /
-  PostgreSQL backend with the four agents.
+- Only the **Pregnancy** encounter type is wired. The other five need their own
+  question sets and schema mappings — same one-file-per-programme pattern.
 
 ---
 
@@ -298,6 +279,75 @@ capture-to-five-outputs flow must work with venue wifi off — that is the claim
 > One or two lines per change. **Newest first.** Date · what changed · why.
 > Add an entry every time anything in this repo changes.
 
+### 2026-09-18 — Gemini + Grok, real OCR, scan-to-reusable-form
+- **Provider chain.** Chat: **Gemini → Grok → the offline engine.** OCR: **Grok
+  vision → a worked sample.** The offline engine is not a degraded mode — it is
+  the only path that works with no signal, which is most of the time in a
+  village. A model is an enhancement on top, never a dependency. Each answer
+  carries a badge saying which one replied, and names any provider that failed.
+- `src/ai/` — `config.js` (the single place that knows what is configured),
+  `providers.js` (Gemini `generateContent`, Grok `chat/completions`, Grok vision
+  with an image part), `index.js` (the chain, the grounding prompt, the OCR
+  extraction).
+- **Grounding prompt.** The model is given a fact sheet built from her record
+  and told to answer only from it: never diagnose, never prescribe, never invent
+  a number or a scheme rule, send anything urgent to 102. Emergency intents
+  never reach a model at all — the local engine answers those directly.
+- **`.env.example`** with `VITE_GEMINI_API_KEY`, `VITE_GROK_API_KEY`,
+  `VITE_GROK_VISION_MODEL` and `VITE_AI_PROXY`. `.env` is gitignored.
+  **Vite inlines `VITE_*` into the bundle, so a key there is public.** That is
+  stated in the file, the README and in-app under More → Models. `VITE_AI_PROXY`
+  points at a backend that holds the keys instead, and is the path to real use.
+- **Scan → save → reuse, the loop the user asked for:**
+  photograph a page → Grok vision returns the form's *structure* (labels, types,
+  required flags, canonical mapping, per-field confidence, plus any handwritten
+  value) → low-confidence or unmapped rows can be remapped or dropped →
+  **"Save this as a form"** → it joins the form list → from then on, pick a
+  family (existing or new) and it prefills.
+  Measured on the sample: **9 fields read, 8 map to the record, so opening it
+  for Sunita asks 1 question** — the unmapped "Remarks".
+- Dexie **v3**: `customForms`. `data/formRegistry.js` merges built-in and scanned
+  forms so the picker, prefill and submission treat them identically. Unmapped
+  fields get a `scan.<slug>` path, so they are still learned per person.
+- Built-in forms obey the officer's publish switch; a form an ASHA scanned is
+  hers and always available.
+- More → Models shows what is configured, the fallback order, and the key warning.
+
+### 2026-09-18 — beneficiary chatbot, voice agent, Telugu
+- **The woman portal now reads the same database the ASHA writes.** Each persona
+  is bound to a real row (`WOMAN.pregnant.memberId = 'm1'`,
+  `mother = 'm5'`), and `hooks/useSubject.js` merges household, member,
+  encounters, form submissions and learned facts, runs the derivations, and
+  merges live activity into her timeline. **An ASHA visit shows up in her record
+  and in her chatbot with no round trip** — verified end to end.
+- **`engine/assistant.js`** — an intent matcher over a written knowledge base
+  (~25 intents), where every answer is COMPOSED FROM HER RECORD. It quotes her
+  actual Hb, BP, EDD, vaccine week, scheme stage and blocker. Emergency
+  keywords short-circuit everything and return the 102 answer in a red bubble.
+  Adding an answer is adding one entry to `KB`.
+- **Continuous voice agent** (`engine/voice.js`): listen → transcribe → answer →
+  speak → **listen again**, hands-free until she says "stop" (matched in en/hi/te).
+  Barge-in cancels playback. `VoiceBar` shows whose turn it is. Degrades to
+  typing where `SpeechRecognition` is missing, with the reason stated.
+- **Telugu added and reviewed** — 95 UI keys in all of en/hi/te. The language
+  list now offers all 13 official languages; the 10 unreviewed ones are shown
+  disabled. Language drives the UI, the date format, the speech-recognition
+  locale and the synthesis voice.
+- **Assistant answers are language-keyed** (`{en, hi, te}`). Where an intent has
+  no reviewed translation the English text is returned **with a visible badge
+  saying so** — consistent with the rule that clinical wording is never machine
+  translated.
+- `i18n/langs.js` split out so the store can clamp `lang` without a circular import.
+- **Seed v2: past encounters now carry real facts** (Hb 9.8, BP 118/78, weight
+  52, Td given). Before this the chatbot correctly answered "not recorded yet",
+  which exposed that the displayed history and the actual database disagreed.
+  `ensureSeeded` is versioned and re-seeds, keeping anything added in the field.
+- **Bug the e2e test caught: out-of-range values were accepted.** The number pad
+  warned but the Next button did not check, so Hb 104 could be committed.
+  `NumberPad` now reports validity and capture refuses to advance.
+- ASHA family → People now has **"Her portal"** next to a member who is a
+  beneficiary, for a one-tap end-to-end demo.
+
 ### 2026-09-18 — adding families and people in the field
 - **Three ways to create a record**, because a form is useless if the person is
   not on the list yet:
@@ -365,64 +415,6 @@ capture-to-five-outputs flow must work with venue wifi off — that is the claim
 - **Clamped both persisted enums in the store** (`lang`, `womanMode`) so a
   stale or garbage localStorage value can never hand a screen an unknown key,
   and guarded the prompts lookup with `?? []`.
-
-### 2026-09-18 — all six visit types wired, from the real forms
-
-- **The other five encounter types now have real question sets**, taken from the
-  instrument the ASHA already carries rather than invented: the **HBNC card**
-  (visit schedule days 1/3/7/14/21/28/42 for a home delivery and 3/7/14/21/28/42
-  for an institutional one, birth weight, temperature, breastfeeding, the eleven
-  newborn danger signs and the six maternal ones), the **MCP card immunisation
-  page and the National Immunization Schedule** (26 vaccines across nine
-  milestones; the app builds the "given today" list from the date of birth), the
-  **CBAC checklist** (Part A scored exactly as printed — age band, tobacco three
-  ways, daily alcohol, waist by sex, 150 minutes of activity, family history,
-  maximum 10 — and Part B for TB, oral cavity, skin and sensation, breast and
-  cervical, and mental health), the **IDSP syndromic line list** (symptom set,
-  days ill, IMNCI danger signs, ORS and zinc, malaria rapid test), and the
-  **eligible-couple register** (couples, method in use, unmet need, births and
-  deaths since the last visit, fuel, net, Ayushman card).
-- **Programme fields are now scoped by encounter type.** A field in a schema
-  file may carry `"for": ["Newborn", ...]`; a field with no `for` belongs to
-  every visit. One schema file serves six visits with no code per visit, so the
-  "a sixth programme is a sixth file" claim now also holds across visit types.
-  `fieldsFor()` and `programmesFor()` in the solver are the only new API.
-- **Derivation rules may be scoped too** (`only: ['Pregnancy']`). This is what
-  stops a Newborn visit claiming it can derive `person.sex` from the fact that
-  the encounter is a pregnancy.
-- **Two real solver bugs found and fixed while wiring this up:**
-  1. `derivableClosure` treated a path as un-derivable as soon as a human
-     *could* be asked for it, so adding a `person.sex` question made the solver
-     ask for something it already knew. Supply is now read as inputs only.
-  2. A field computed from an answer that no register names by itself — the
-     malaria rapid test behind the HMIS malaria count, the danger-sign list
-     behind "referred" — was reported as derived while its input was never
-     asked, and the register came out blank. `derivationInputs()` now walks the
-     rules backwards and adds those answers to the question plan.
-- **Skip logic now cascades.** A question removed by a gate silences everything
-  computed from it, so a 24-year-old's CBAC score reads *Not applicable* rather
-  than *missing*. Without this the Health check output looked broken.
-- **`imm.dosesGiven` has a live option list** — `optionsFor(facts)` builds the
-  tick list from the child's date of birth and the national schedule, so the
-  ASHA sees the four vaccines actually due at 14 weeks, not all 26.
-- **New `multi` input type** for the danger-sign checklists and vaccine lists,
-  with a "none of these" option that clears the rest and is cleared by them.
-- **Question order** is explicit (`order` on each question), so identity comes
-  before household, household before clinical, and a gate is always asked after
-  the answer it depends on.
-- **Every emoji and Unicode-glyph icon is gone.** 40 new stroke icons in
-  `Icon.jsx` (84 in total) covering the question bank, the visit types, the
-  role and proof marks, the keypad backspace, the speaker, play/stop, print and
-  the agent mark. Verified: `grep` for pictographic and geometric ranges over
-  `src/` returns nothing.
-- Per-visit **incentive activities** added (HBNC visit, JSY escort, low birth
-  weight follow-up, immunisation session, cancer and leprosy referral, ORS and
-  zinc, fever surveillance, household survey), each scoped to the visit types it
-  can arise from, so the earnings screen cannot claim a newborn payment off an
-  NCD screening. Amounts remain demonstration values.
-- Verified end to end: a scripted capture of all six types fills **every field
-  of every register with no missing required value**, and the full source tree
-  bundles clean.
 
 ### 2026-09-18 — beneficiary portal rebuilt
 - **Two personas, one interface.** `WOMAN.pregnant` (Sunita Devi, 22 weeks) and

@@ -15,6 +15,7 @@ export default function AskOnce() {
 
   const [pending, setPending] = useState(undefined)
   const [openCounter, setOpenCounter] = useState(false)
+  const [valid, setValid] = useState(true)
   const [flash, setFlash] = useState(null)
   const prevAsked = useRef(null)
 
@@ -43,16 +44,16 @@ export default function AskOnce() {
     prevAsked.current = plan.stats.asked
   }, [plan.stats.asked])
 
-  useEffect(() => { setPending(undefined) }, [currentKey])
+  useEffect(() => { setPending(undefined); setValid(true) }, [currentKey])
 
   if (!draft) return <Navigate to="/asha" replace />
   if (!currentKey) return <Navigate to="/asha/review" replace />
 
-  const ready = q.type === 'bp'
+  const ready = valid && (q.type === 'bp'
     ? pending?.sys != null && pending?.dia != null
     : q.type === 'multi'
       ? Array.isArray(pending) && pending.length > 0
-      : pending !== undefined && pending !== ''
+      : pending !== undefined && pending !== '')
 
   const commit = () => {
     if (!ready) return
@@ -132,8 +133,8 @@ export default function AskOnce() {
 
       <main key={currentKey} className="flex-1 px-4 pt-5 pb-4 flex flex-col anim-up">
         <div className="text-center mb-5">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-brand-soft grid place-items-center text-brand mb-3">
-            <Icon name={q.icon} size={32} stroke={1.8} />
+          <div className="raise w-[68px] h-[68px] rounded-3xl grid place-items-center mx-auto mb-3.5 text-brand">
+            <Icon name={q.icon} size={32} stroke={1.6} />
           </div>
           <div className="flex items-start justify-center gap-2">
             <h1 className="text-[24px] font-bold leading-snug text-balance">{q.q}</h1>
@@ -148,12 +149,14 @@ export default function AskOnce() {
         </div>
 
         <div className="flex-1">
-          <QuestionInput q={q} value={pending} onChange={setPending} />
+          <QuestionInput q={q} value={pending} onChange={setPending} onValid={setValid} />
         </div>
 
         <div className="pt-5 space-y-2 safe-bot">
           <Btn full onClick={commit} disabled={!ready}>
-            {ready ? 'Next' : q.type === 'multi' ? 'Tick what applies' : 'Choose an answer'}
+            {!valid ? 'Check that number'
+              : ready ? 'Next'
+              : q.type === 'multi' ? 'Tick what applies' : 'Choose an answer'}
           </Btn>
           {q.optional && (
             <button onClick={() => { answer({ [currentKey]: null }, { key: currentKey, paths: [currentKey], label: q.q, value: 'Skipped' }) }}

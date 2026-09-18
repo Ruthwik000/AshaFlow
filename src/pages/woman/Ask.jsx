@@ -1,10 +1,24 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, say } from '../../store/useStore'
-import { WOMAN, WOMAN_ASK } from '../../data/seed'
+import { useSubject } from '../../hooks/useSubject'
+import { buildContext, answer as askEngine, suggestions } from '../../engine/assistant'
+import { askModel, hasAnyChat } from '../../ai'
+import { WOMAN } from '../../data/seed'
 import Icon from '../../components/Icon'
 import WomanBar from '../../components/WomanBar'
+import VoiceBar from '../../components/VoiceBar'
+import { createVoiceAgent, voiceSupported, speakOnce } from '../../engine/voice'
 import { Btn, Notice } from '../../components/ui'
+
+/** **bold** without pulling in a markdown parser. */
+function rich(text) {
+  return String(text).split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**')
+      ? <b key={i} className="font-bold">{part.slice(2, -2)}</b>
+      : <span key={i}>{part}</span>
+  )
+}
 
 const clock = () => new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
 
@@ -21,35 +35,75 @@ export default function Ask() {
   const nav = useNavigate()
   const mode = useStore(s => s.womanMode)
   const offline = useStore(s => s.demoOffline || !s.online)
+  const [subject] = useSubject(mode)
   const w = WOMAN[mode]
-  const bank = WOMAN_ASK[mode]
+  const ctx = useMemo(() => (subject ? buildContext(subject) : null), [subject])
+  const prompts = useMemo(() => (ctx ? suggestions(ctx) : []), [ctx])
+  const TOPICS = mode === 'pregnant'
+    ? [{ icon: 'pulse', label: 'My health' }, { icon: 'wallet', label: 'My money' },
+       { icon: 'doc', label: 'My papers' }, { icon: 'calendar', label: 'My visits' }]
+    : [{ icon: 'syringe', label: 'Vaccines' }, { icon: 'growth', label: "Baby's growth" },
+       { icon: 'wallet', label: 'My money' }, { icon: 'baby', label: 'Feeding' }]
 
+  const lang = useStore(s => s.lang)
   const [msgs, setMsgs] = useState([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const [listening, setListening] = useState(false)
+  const [voiceState, setVoiceState] = useState('idle')
+  const [partial, setPartial] = useState('')
+  const [voiceErr, setVoiceErr] = useState(null)
   const end = useRef(null)
+  const agent = useRef(null)
+  const ctxRef = useRef(null)
+  useEffect(() => { ctxRef.current = ctx }, [ctx])
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [msgs, busy])
   useEffect(() => { setMsgs([]) }, [mode])
 
-  const answer = q => bank.answers.find(a => a.match.test(q)) || { text: bank.fallback, sources: [] }
+  const reply = (q, { spoken = false } = {}) => {
+    const c = ctxRef.current
+    if (!c) return
+    const a = askEngine(q, c, lang)
+    setMsgs(m => [...m, { role: 'a', ...a, at: clock() }])
+    setBusy(false)
+    if (spoken) agent.current?.speak(a.text)     // …then it listens again on its own
+  }
 
-  const send = text => {
+  const send = (text, opts = {}) => {
     const q = (text ?? input).trim()
-    if (!q || busy) return
-    setInput(''); setMsgs(m => [...m, { role: 'u', text: q, at: clock() }]); setBusy(true)
-    setTimeout(() => {
-      setMsgs(m => [...m, { role: 'a', ...answer(q), at: clock() }])
-      setBusy(false)
-    }, 900)
+    if (!q || !ctxRef.current) return
+    setInput(''); setPartial('')
+    setMsgs(m => [...m, { role: 'u', text: q, at: clock(), spoken: opts.spoken }])
+    setBusy(true)
+    setTimeout(() => reply(q, opts), opts.spoken ? 250 : 700)
   }
 
-  const mic = () => {
-    if (listening) return setListening(false)
-    setListening(true)
-    setTimeout(() => { setListening(false); send(bank.prompts[0]) }, 1800)
+  /* --- the voice loop: listen → answer → speak → listen again ---------- */
+  const startVoice = () => {
+    setVoiceErr(null)
+    if (!voiceSupported()) {
+      setVoiceErr('This browser cannot listen. Chrome on Android works; you can still type.')
+      return
+    }
+    const a = createVoiceAgent({
+      lang,
+      onState: setVoiceState,
+      onPartial: setPartial,
+      onError: e => setVoiceErr(e === 'not-allowed'
+        ? 'Microphone permission was refused. Allow it in the browser to talk.'
+        : `Voice stopped: ${e}`),
+      onFinal: (said, { stop }) => {
+        setPartial('')
+        if (stop) { setMsgs(m => [...m, { role: 'u', text: said, at: clock(), spoken: true }]); return }
+        send(said, { spoken: true })
+      },
+    })
+    agent.current = a
+    a.start()
   }
+
+  const stopVoice = () => { agent.current?.stop(); agent.current = null; setPartial(''); setVoiceState('idle') }
+  useEffect(() => () => agent.current?.stop(), [])
 
   return (
     <>
@@ -75,7 +129,7 @@ export default function Ask() {
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 mt-6">
-              {bank.topics.map(c => (
+              {TOPICS.map(c => (
                 <div key={c.label} className="raise-sm rounded-2xl px-3.5 py-3 flex items-center gap-2.5">
                   <span className="text-brand shrink-0"><Icon name={c.icon} size={17} /></span>
                   <span className="text-[12.5px] font-semibold text-ink-2 leading-tight">{c.label}</span>
@@ -86,7 +140,7 @@ export default function Ask() {
             <div className="mt-7">
               <div className="text-[13px] font-semibold text-ink-2 mb-2.5 px-0.5">Try asking</div>
               <div className="space-y-2">
-                {bank.prompts.map(p => (
+                {prompts.map(p => (
                   <button key={p} onClick={() => send(p)}
                     className="press raise w-full text-left rounded-2xl pl-4 pr-3 py-3.5 flex items-center gap-3">
                     <span className="text-[14px] text-ink flex-1 leading-snug">{p}</span>
@@ -104,16 +158,27 @@ export default function Ask() {
               <div className="btn-solid max-w-[82%] rounded-2xl rounded-br-md px-4 py-3 !cursor-default">
                 <p className="text-[14.5px] text-white leading-relaxed">{m.text}</p>
               </div>
-              <span className="text-[10.5px] text-ink-3 mt-1.5 mr-1 num">{m.at}</span>
+              <span className="text-[10.5px] text-ink-3 mt-1.5 mr-1 num flex items-center gap-1">
+                {m.spoken && <Icon name="assist" size={11} />}{m.at}
+              </span>
             </div>
           ) : (
             <div key={i} className="anim-up">
               <div className="flex gap-2.5">
                 <Mark />
                 <div className="min-w-0 flex-1">
-                  <div className="raise rounded-2xl rounded-tl-md px-4 py-3.5">
-                    <p className="text-[14.5px] text-ink leading-[1.65] whitespace-pre-line">{m.text}</p>
+                  <div className={`rounded-2xl rounded-tl-md px-4 py-3.5
+                    ${m.tone === 'danger' ? 'bg-late-soft border border-late/30' : 'raise'}`}>
+                    <p className="text-[14.5px] text-ink leading-[1.65] whitespace-pre-line">{rich(m.text)}</p>
 
+                    {m.needsReview && (
+                      <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-due-soft px-2.5 py-1.5">
+                        <span className="text-due shrink-0 mt-0.5"><Icon name="info" size={12} /></span>
+                        <span className="text-[11px] text-due leading-snug">
+                          Shown in English — this answer has not been translated and reviewed yet.
+                        </span>
+                      </div>
+                    )}
                     {m.sources?.length > 0 && (
                       <div className="mt-3.5 pt-3.5 border-t border-line-2">
                         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-3 mb-2">
@@ -137,9 +202,20 @@ export default function Ask() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-1.5 pl-1">
+                  <div className="flex items-center gap-3 mt-1.5 pl-1 flex-wrap">
                     <span className="text-[10.5px] text-ink-3 num">{m.at}</span>
-                    <button onClick={() => say(m.text)}
+                    {m.via && (
+                      <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded
+                        ${m.via === 'local' ? 'bg-line-2 text-ink-3' : 'bg-brand-soft text-brand'}`}>
+                        {m.via === 'local' ? 'offline' : m.via}
+                      </span>
+                    )}
+                    {m.tried?.length > 0 && (
+                      <span className="text-[10px] text-due">
+                        {m.tried.map(t => t.id).join(', ')} unavailable
+                      </span>
+                    )}
+                    <button onClick={() => say(m.text.replace(/\*\*/g, ''))}
                       className="press flex items-center gap-1 text-[11px] font-semibold text-ink-3">
                       <Icon name="assist" size={12} /> Read aloud
                     </button>
@@ -168,33 +244,39 @@ export default function Ask() {
       </main>
 
       <div className="sticky bottom-0 bg-paper/94 backdrop-blur-md border-t border-line px-3 pt-3 pb-2 safe-bot">
-        {listening && (
-          <div className="flex items-center justify-center gap-2.5 pb-3">
-            <span className="flex items-end gap-[3px] h-4">
-              {[0, 1, 2, 3, 4].map(i => (
-                <span key={i} className="w-[3px] rounded-full bg-brand animate-pulse"
-                  style={{ height: [8, 15, 11, 16, 9][i], animationDelay: `${i * 110}ms` }} />
-              ))}
-            </span>
-            <span className="text-[13px] font-semibold text-brand">Listening…</span>
+        <VoiceBar state={voiceState} partial={partial} lang={lang} onStop={stopVoice} />
+
+        {voiceErr && (
+          <div className="pb-3">
+            <div className="rounded-xl bg-due-soft border border-due/25 px-3.5 py-2.5">
+              <span className="text-[12.5px] text-due font-medium">{voiceErr}</span>
+            </div>
           </div>
         )}
+
         <div className="flex items-end gap-2">
           <input value={input} onChange={e => setInput(e.target.value)} id="womanask"
             onKeyDown={e => e.key === 'Enter' && send()}
             placeholder="Type your question…"
             className="sink flex-1 min-h-[50px] rounded-2xl px-4 text-[15px] placeholder:text-ink-3/60" />
-          <button onClick={input.trim() ? () => send() : mic}
-            aria-label={input.trim() ? 'Send' : 'Speak'}
-            className={`press w-[50px] h-[50px] shrink-0 rounded-2xl grid place-items-center text-white
-              ${listening ? 'btn-danger' : 'btn-solid'}`}>
-            <Icon name={input.trim() ? 'chevron' : 'assist'} size={20} stroke={2.1}
-              className={input.trim() ? '-rotate-90' : ''} />
-          </button>
+          {input.trim() ? (
+            <button onClick={() => send()} aria-label="Send"
+              className="press btn-solid w-[50px] h-[50px] shrink-0 rounded-2xl grid place-items-center text-white">
+              <Icon name="chevron" size={20} stroke={2.1} className="-rotate-90" />
+            </button>
+          ) : (
+            <button onClick={voiceState === 'idle' ? startVoice : stopVoice}
+              aria-label={voiceState === 'idle' ? 'Start talking' : 'Stop talking'}
+              className={`press w-[50px] h-[50px] shrink-0 rounded-2xl grid place-items-center text-white
+                ${voiceState === 'idle' ? 'btn-solid' : 'btn-danger'}`}>
+              <Icon name="assist" size={20} stroke={2.1} />
+            </button>
+          )}
         </div>
         <p className="text-[10.5px] text-ink-3 text-center mt-2.5 leading-snug px-2">
-          Answers come from your own record and the published scheme rules. This is not a doctor —
-          for anything urgent, call your ASHA or 102.
+          {voiceState === 'idle'
+            ? 'Tap the button and just talk — it keeps listening until you say stop. Answers come from your own record. Not a doctor: for anything urgent call your ASHA or 102.'
+            : 'Speak naturally. It will answer aloud and then listen again.'}
         </p>
       </div>
     </>

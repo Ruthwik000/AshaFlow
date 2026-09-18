@@ -25,7 +25,7 @@ export function YesNo({ value, onChange }) {
   )
 }
 
-export function NumberPad({ value, onChange, unit, min, max, step = 1 }) {
+export function NumberPad({ value, onChange, unit, min, max, step = 1, onValid }) {
   const [txt, setTxt] = useState(value != null ? String(value) : '')
   useEffect(() => { setTxt(value != null ? String(value) : '') }, [value])
 
@@ -41,6 +41,7 @@ export function NumberPad({ value, onChange, unit, min, max, step = 1 }) {
 
   const n = txt === '' ? null : Number(txt)
   const bad = n != null && ((min != null && n < min) || (max != null && n > max))
+  useEffect(() => { onValid?.(!bad) }, [bad, onValid])
   const keys = ['1','2','3','4','5','6','7','8','9', step < 1 ? '.' : '', '0', 'del']
 
   return (
@@ -53,7 +54,7 @@ export function NumberPad({ value, onChange, unit, min, max, step = 1 }) {
       </div>
       {bad && (
         <p className="text-[13px] text-late mb-2 text-center font-medium">
-          Enter a value between {min} and {max}.
+          That is outside the normal range. Enter a value between {min} and {max}.
         </p>
       )}
       <div className="grid grid-cols-3 gap-2">
@@ -154,15 +155,18 @@ export function TextInput({ value, onChange, placeholder, id = 'textfield' }) {
   )
 }
 
-/* Several answers to one question — the danger-sign checklists on the HBNC
-   card, CBAC Part B, and the vaccines given at one session. Choosing the
-   "none" option clears the rest, and choosing anything real clears "none",
-   because "no danger signs" and "jaundice" cannot both be true. */
-export function MultiSelect({ value, onChange, options, noneValue }) {
+/** Renders whichever input the question declares. */
+/* Several answers to one question — the danger-sign checklists on the HBNC card,
+   CBAC Part B, and the vaccines given at one session. Picking the "none" option
+   clears the rest and picking anything real clears "none", because "no danger
+   signs" and "jaundice" cannot both be true. */
+export function MultiSelect({ value, onChange, options = [], noneValue }) {
   const picked = Array.isArray(value) ? value : []
   const toggle = v => {
     if (noneValue && v === noneValue) return onChange([noneValue])
-    const next = picked.includes(v) ? picked.filter(x => x !== v) : [...picked.filter(x => x !== noneValue), v]
+    const next = picked.includes(v)
+      ? picked.filter(x => x !== v)
+      : [...picked.filter(x => x !== noneValue), v]
     onChange(next)
   }
   return (
@@ -186,15 +190,16 @@ export function MultiSelect({ value, onChange, options, noneValue }) {
   )
 }
 
-/** Renders whichever input the question declares. */
-export function QuestionInput({ q, value, onChange, id }) {
+export function QuestionInput({ q, value, onChange, id, onValid }) {
   switch (q.type) {
     case 'yesno':  return <YesNo value={value} onChange={onChange} />
-    case 'number': return <NumberPad value={value} onChange={onChange} unit={q.unit} min={q.min} max={q.max} step={q.step} />
+    case 'number': return <NumberPad value={value} onChange={onChange} unit={q.unit} min={q.min}
+                            max={q.max} step={q.step} onValid={onValid} />
     case 'choice': return <ChoiceGrid value={value} onChange={onChange} options={q.options} />
     case 'date':   return <DatePick value={value} onChange={onChange} quick={q.quick} id={id ? `${id}-date` : undefined} />
     case 'bp':     return <BPInput value={value || {}} onChange={onChange} />
-    case 'multi':  return <MultiSelect value={value} onChange={onChange} options={q.options} noneValue={q.noneValue} />
+    case 'multi':  return <MultiSelect value={value} onChange={onChange} options={q.options}
+                            noneValue={q.noneValue} />
     default:       return <TextInput value={value} onChange={onChange} placeholder={q.placeholder}
                             id={id ? `${id}-text` : undefined} />
   }

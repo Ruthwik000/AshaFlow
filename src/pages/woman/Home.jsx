@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { WOMAN, WOMAN_SCHEMES, WOMAN_NEWS, WOMAN_DANGER, WOMAN_TIMELINE } from '../../data/seed'
+import { useSubject } from '../../hooks/useSubject'
+import { WOMAN } from '../../data/seed'
 import Icon from '../../components/Icon'
 import WomanBar from '../../components/WomanBar'
 import { Card, Section, Bar, Btn, List, Row, Notice, Pill, rupee, fmtDate, daysFromNow } from '../../components/ui'
@@ -14,11 +15,11 @@ const TAG = {
 export default function WomanHome() {
   const nav = useNavigate()
   const mode = useStore(s => s.womanMode)
+  const [subject] = useSubject(mode)
   const w = WOMAN[mode]
-  const schemes = WOMAN_SCHEMES[mode]
-  const news = WOMAN_NEWS[mode]
-  const danger = WOMAN_DANGER[mode]
-  const recent = WOMAN_TIMELINE[mode].slice(0, 2)
+  if (!subject) return <div className="p-6 text-ink-3">Reading your record…</div>
+  const { schemes, news, danger, timeline, liveCount } = subject
+  const recent = timeline.slice(0, 2)
 
   const blocked = schemes.flatMap(s => s.stages.map(st => ({ ...st, scheme: s })))
                          .find(st => st.state === 'blocked')
@@ -93,7 +94,7 @@ export default function WomanHome() {
           ))}
         </div>
 
-        <Section title="Latest in your record" action={
+        <Section title={liveCount ? `Latest in your record · ${liveCount} new` : 'Latest in your record'} action={
           <button onClick={() => nav('/woman/records')} className="text-[12.5px] font-semibold text-brand">See all ›</button>
         }>
           <List>
