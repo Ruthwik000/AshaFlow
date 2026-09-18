@@ -67,8 +67,8 @@ export const AI = {
   proxy: clean(env.VITE_AI_PROXY).replace(/\/$/, ''),
   gemini: {
     key: clean(env.VITE_GEMINI_API_KEY),
-    model: clean(env.VITE_GEMINI_MODEL) || 'gemini-2.0-flash',
-    vision: clean(env.VITE_GEMINI_VISION_MODEL) || clean(env.VITE_GEMINI_MODEL) || 'gemini-2.0-flash',
+    model: clean(env.VITE_GEMINI_MODEL) || 'gemini-3.6-flash',
+    vision: clean(env.VITE_GEMINI_VISION_MODEL) || clean(env.VITE_GEMINI_MODEL) || 'gemini-3.6-flash',
   },
   grok: {
     key: FAST_KEY,
@@ -81,7 +81,7 @@ export const AI = {
     visionModels: fastVision,
     model: fastChat[0] || (SERVICE === 'groq' ? 'openai/gpt-oss-120b' : 'grok-2-latest'),
     vision: fastVision[0] || (SERVICE === 'groq' ? null : 'grok-2-vision-1212'),
-    hasVision: SERVICE === 'xai' || (SERVICE === 'groq' && fastVision.length > 0),
+    hasVision: SERVICE === 'xai',
     ignoredModel: SERVICE && fastConfiguredChat && !fits(SERVICE, fastConfiguredChat)
       ? fastConfiguredChat : null,
     ignoredVision: SERVICE && fastConfiguredVision && !fits(SERVICE, fastConfiguredVision)

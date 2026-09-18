@@ -80,17 +80,16 @@ async function postChat(body, headers, ms) {
 
 /** Newest and cheapest first; the first live match wins. */
 const PREFER = {
-  gemini: [/^gemini-2\.5-flash$/, /^gemini-flash-latest$/, /^gemini-[3-9][\d.]*-flash$/,
-           /2\.5-flash/, /flash-latest/, /-flash$/, /flash/, /pro-latest/, /-pro$/, /./],
+  gemini: [/^gemini-3\.6-flash$/, /^gemini-3\.8-flash$/, /^gemini-flash-latest$/, /^gemini-3[\d.]*-flash/, /-flash$/, /flash/, /./],
   xai:    [/^grok-[4-9]/, /^grok-3/, /^grok-2-latest$/, /^grok-2/, /grok/, /./],
-  groq:   [/^openai\/gpt-oss-120b$/, /gpt-oss-120b/, /^openai\/gpt-oss-20b$/, /gpt-oss/, /qwen3\.8-27b/, /compound/, /llama-3\.3-70b/, /./],
+  groq:   [/^openai\/gpt-oss-120b$/, /gpt-oss-120b/, /^openai\/gpt-oss-20b$/, /gpt-oss/, /qwen3\.8-27b/, /compound/, /./],
 }
 
 /** Vision is a different shortlist only where a provider separates the two. */
 const PREFER_VISION = {
   gemini: PREFER.gemini,
   xai:    [/vision/, /^grok-[4-9]/, /./],
-  groq:   [/vision/, /llama-3\.2-.*vision/],
+  groq:   [], // Groq account only has text/audio models
 }
 
 /** Never pick one of these for chat or for reading a form. */
