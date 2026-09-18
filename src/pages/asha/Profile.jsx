@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PROFILE } from '../../data/seed'
+import { db } from '../../db/db'
+import { caseloadMatrix } from '../../engine/caseload'
 import { useStore } from '../../store/useStore'
 import Icon from '../../components/Icon'
 import { TopBar, Card, Section, List, Row, Btn, Pill, Avatar, IconBtn, rupee, fmtDate } from '../../components/ui'
@@ -8,6 +11,11 @@ export default function Profile() {
   const nav = useNavigate()
   const logout = useStore(s => s.logout)
   const p = PROFILE
+  const [matrix, setMatrix] = useState(null)
+  useEffect(() => {
+    Promise.all([db.households.toArray(), db.members.toArray(), db.tasks.toArray()])
+      .then(([households, members, tasks]) => setMatrix(caseloadMatrix({ households, members, tasks })))
+  }, [])
   const pending = p.verified.filter(v => v.state !== 'ok').length
 
   return (
@@ -88,19 +96,25 @@ export default function Profile() {
             <div className="flex items-start gap-3">
               <span className="text-brand mt-0.5"><Icon name="pin" size={19} /></span>
               <div>
-                <div className="font-semibold text-[15px] leading-tight">{p.village}</div>
+                <div className="font-semibold text-[15px] leading-tight">
+                  {matrix ? matrix.villages.map(v => v.name).join(', ') : p.village}
+                </div>
                 <div className="text-[12.5px] text-ink-3 mt-0.5">{p.block} · {p.district} · {p.state}</div>
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-line-2">
-              {[[p.covers.households, 'houses'], [p.covers.people, 'people'],
-                [p.covers.pregnant, 'pregnant'], [p.covers.infants, 'infants']].map(([v, l]) => (
+              {[[matrix?.households, 'houses'], [matrix?.people, 'people'],
+                [matrix?.rows.find(r => r.key === 'pregnant')?.n, 'pregnant'],
+                [matrix?.rows.find(r => r.key === 'under5')?.n, 'under 5']].map(([v, l]) => (
                 <div key={l} className="text-center">
-                  <div className="text-[17px] font-bold num leading-none">{v}</div>
+                  <div className="text-[17px] font-bold num leading-none">{v ?? '—'}</div>
                   <div className="text-[10.5px] text-ink-3 mt-1">{l}</div>
                 </div>
               ))}
             </div>
+            <p className="text-[11px] text-ink-3 mt-3 leading-relaxed">
+              Counted from your household records.
+            </p>
           </Card>
         </Section>
 

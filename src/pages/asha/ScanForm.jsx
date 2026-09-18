@@ -33,34 +33,6 @@ const STEPS = ['Sending the photograph', 'Reading the printed labels',
                'Matching them to the record', 'Checking the values']
 const PATHS = Object.keys(PATH_LABELS)
 
-async function resizeImage(dataUrl, maxDim = 1600) {
-  return new Promise(res => {
-    const img = new Image()
-    img.onload = () => {
-      let { width, height } = img
-      if (width <= maxDim && height <= maxDim) {
-        res(dataUrl)
-        return
-      }
-      if (width > height) {
-        height = Math.round((height * maxDim) / width)
-        width = maxDim
-      } else {
-        width = Math.round((width * maxDim) / height)
-        height = maxDim
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, 0, 0, width, height)
-      res(canvas.toDataURL('image/jpeg', 0.88))
-    }
-    img.onerror = () => res(dataUrl)
-    img.src = dataUrl
-  })
-}
-
 export default function ScanForm() {
   const nav = useNavigate()
   const fileRef = useRef(null)
@@ -83,12 +55,11 @@ export default function ScanForm() {
     try {
       let dataUrl = null
       if (file) {
-        const rawUrl = await new Promise((res, rej) => {
+        dataUrl = await new Promise((res, rej) => {
           const r = new FileReader()
           r.onload = () => res(r.result); r.onerror = rej
           r.readAsDataURL(file)
         })
-        dataUrl = await resizeImage(rawUrl)
         setPreview(dataUrl)
       }
 
@@ -102,7 +73,11 @@ export default function ScanForm() {
       setStage('review')
     } catch (e) {
       tick.forEach(clearTimeout)
-      setErr(explain('Vision OCR', e))
+      const first = e.tried?.[0]
+      setErr({
+        ...explain(first?.id === 'gemini' ? 'Gemini' : 'Grok', first?.error || e),
+        tried: e.tried,
+      })
       setStage('pick')
     }
   }
@@ -146,8 +121,10 @@ export default function ScanForm() {
           <>
             {!hasOCR() && (
               <Notice tone="due" title="No OCR key configured">
-                Add a Grok key (<code>VITE_GROK_API_KEY</code>) or Gemini key (<code>VITE_GEMINI_API_KEY</code>) to <code>.env</code> to read a real
-                photograph. Without one this walks through a worked sample so the flow can still be shown.
+                Put <code>VITE_GROK_API_KEY</code> or <code>VITE_GEMINI_API_KEY</code> in
+                {' '}<code>.env</code> to read a real photograph — either one is enough, and Grok is
+                tried first. Without a key this walks through a worked sample so the flow can still
+                be shown.
               </Notice>
             )}
             {err && (
@@ -157,6 +134,11 @@ export default function ScanForm() {
                   <Icon name="alert" size={16} /> {err.title}
                 </div>
                 <p className="text-[13px] text-ink-2 mt-2 leading-relaxed whitespace-pre-line">{err.fix}</p>
+                {err.tried?.length > 1 && (
+                  <p className="text-[12px] text-late mt-2">
+                    Both readers were tried: {err.tried.map(t => t.id).join(' then ')}.
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-2.5 mt-3.5">
                   <Btn size="sm" onClick={() => nav('/asha/diagnostics')}>Check the keys</Btn>
                   <Btn size="sm" tone="ghost" onClick={() => run(null)}>Use the sample</Btn>
@@ -209,28 +191,29 @@ export default function ScanForm() {
 
         {stage === 'review' && doc && (
           <>
-            {doc.simulated ? (
+            {doc.simulated && (
               <Notice tone="due" title="Worked sample">
-                No OCR key is set, so this is a fixed example rather than your photograph.
+                No Grok or Gemini key is set, so this is a fixed example rather than your photograph.
               </Notice>
-            ) : (
-              <div className="flex items-center gap-2 px-1 text-[12px]">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-soft text-brand font-medium">
-                  <Icon name="check" size={13} stroke={2.4} />
-                  Read by {doc.provider === 'gemini' ? 'Gemini Flash' : 'Grok Vision'}
-                </span>
-                {doc.fallbackFrom && (
-                  <span className="text-ink-3 text-[11.5px]">
-                    (Grok failed · recovered via Gemini vision)
-                  </span>
-                )}
-              </div>
+            )}
+            {doc.tried?.length > 0 && (
+              <Notice tone="info" title={`${doc.tried[0].id} could not read it`}>
+                {doc.via} was used instead, and the result is below.
+              </Notice>
             )}
 
             <div className="raise rounded-2xl p-4">
               <div className="font-bold text-[16px] leading-tight">{doc.name}</div>
               {doc.issuedBy && <div className="text-[12.5px] text-ink-3 mt-0.5">{doc.issuedBy}</div>}
               <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 text-[12px] text-ink-2 num">
+                {doc.via && (
+                  <>
+                    <span className="font-semibold uppercase tracking-wide text-brand">
+                      read by {doc.via}
+                    </span>
+                    <span>·</span>
+                  </>
+                )}
                 <span>{fields.length} fields read</span><span>·</span>
                 <span>{mapped} matched to the record</span>
                 {low > 0 && <><span>·</span><span className="text-due font-semibold">{low} need checking</span></>}

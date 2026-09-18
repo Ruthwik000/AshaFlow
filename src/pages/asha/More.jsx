@@ -5,7 +5,7 @@ import { resetAll } from '../../db/db'
 import { useT, LANGS } from '../../i18n'
 import Icon from '../../components/Icon'
 import { TopBar, Card, Section, List, Row, Btn, Toggle, Avatar, Pill, LangSheet, Notice } from '../../components/ui'
-import { providerStatus, hasOCR, hasAnyChat } from '../../ai/config'
+import { providerStatus, hasOCR, hasAnyChat, AI } from '../../ai/config'
 
 function Switch({ icon, label, sub, on, onClick }) {
   return (
@@ -91,15 +91,15 @@ export default function More() {
             <Notice tone={hasAnyChat() ? 'info' : 'due'}
               title={hasAnyChat() ? 'Chat order' : 'No model key set'}>
               {hasAnyChat()
-                ? 'Gemini answers first. If it fails, Grok. If both fail or there is no signal, the offline engine answers from her record — so a question is never left unanswered.'
-                : 'Add VITE_GEMINI_API_KEY and VITE_GROK_API_KEY to .env. Everything still works without them: the offline engine reads her record, and scanning walks a worked sample.'}
-              {hasOCR() ? ' Scanning a paper form uses Grok vision (with Gemini fallback).' : ' Scanning needs a Grok or Gemini key to read a real photograph.'}
+                ? `Chat: Gemini first, then ${AI.grok.label}, then the offline engine — so a question is never left unanswered. Scanning: ${AI.grok.label} vision first, then Gemini vision. Both are called straight from this page; there is no server in between.`
+                : 'Add VITE_GEMINI_API_KEY or VITE_GROK_API_KEY to .env — either one covers both chat and scanning. Everything still works without them: the offline engine reads her record, and scanning walks a worked sample.'}
             </Notice>
           </div>
           <p className="text-[11.5px] text-ink-3 mt-2 px-1 leading-relaxed">
             Vite inlines these keys into the built JavaScript, so they are visible to anyone who
-            opens the page. Fine for a prototype with throwaway keys; before real use they move
-            behind the backend and <code>VITE_AI_PROXY</code> is set instead.
+            opens the page. That is the price of having no server: everything runs in the browser.
+            Fine for a prototype with throwaway keys; before real use the calls move behind a small
+            server that holds them and <code>VITE_AI_PROXY</code> is set instead.
           </p>
         </Section>
 

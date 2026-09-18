@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { ASHA } from '../data/seed'
 import { READY, LOCALE } from '../i18n/langs'
+import { speakOnce } from '../engine/voice'
 
 const read = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v) } catch { return d }
@@ -11,6 +12,7 @@ export const useStore = create((set, get) => ({
   asha: ASHA,
   loggedIn: read('af.loggedIn', false),
   role: read('af.role', 'asha'),
+  authEmail: read('af.authEmail', ''),
   // kept in step with i18n's reviewed list; an unreviewed or stale value falls back
   lang: READY.includes(read('af.lang', 'en')) ? read('af.lang', 'en') : 'en',
   womanMode: ['pregnant', 'mother'].includes(read('af.womanMode', 'pregnant'))
@@ -29,8 +31,12 @@ export const useStore = create((set, get) => ({
   // the encounter currently being captured
   draft: null,
 
-  login: (role = 'asha') => { write('af.loggedIn', true); write('af.role', role); set({ loggedIn: true, role }) },
-  logout: () => { write('af.loggedIn', false); set({ loggedIn: false }) },
+  login: (role = 'asha', email = '') => {
+    const authEmail = String(email).trim().toLowerCase()
+    write('af.loggedIn', true); write('af.role', role); write('af.authEmail', authEmail)
+    set({ loggedIn: true, role, authEmail })
+  },
+  logout: () => { write('af.loggedIn', false); write('af.authEmail', ''); set({ loggedIn: false, authEmail: '' }) },
   setOnline: v => set({ online: v }),
   toggleDemoOffline: () => { const v = !get().demoOffline; write('af.demoOffline', v); set({ demoOffline: v }) },
   toggleBigText: () => { const v = !get().bigText; write('af.bigText', v); set({ bigText: v }) },
@@ -63,15 +69,12 @@ export const useStore = create((set, get) => ({
   isOffline: () => get().demoOffline || !get().online,
 }))
 
+/* Read aloud. This used to call speechSynthesis directly — cancel, then speak,
+   in the same tick, with no voice chosen and no waiting for the engine to load
+   its voices. Chrome answers that with silence. speakOnce handles all of it. */
 export function say(text) {
   try {
     if (!useStore.getState().speak) return
-    if (!('speechSynthesis' in window)) return
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(text)
-    const l = useStore.getState().lang
-    u.lang = LOCALE[l] || 'en-IN'
-    u.rate = 0.92
-    window.speechSynthesis.speak(u)
+    speakOnce(text, useStore.getState().lang)
   } catch { /* speech is a nicety, never a dependency */ }
 }

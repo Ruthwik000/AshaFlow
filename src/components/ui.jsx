@@ -96,11 +96,17 @@ export function LangSheet({ onClose }) {
   const t = useT()
   return (
     <div className="fixed inset-0 z-50 bg-ink/45 flex items-end justify-center" onClick={onClose}>
-      <div className="w-full max-w-[480px] bg-paper rounded-t-3xl p-5 pb-8 anim-up safe-bot paper-ground"
+      <div className="w-full max-w-[480px] max-h-[85vh] flex flex-col bg-paper rounded-t-3xl p-5 pb-6 anim-up safe-bot paper-ground shadow-2xl"
         onClick={e => e.stopPropagation()}>
-        <div className="w-10 h-1 rounded-full bg-line mx-auto mb-4" />
-        <h2 className="font-bold text-[17px] mb-3">{t('common.language')}</h2>
-        <div className="space-y-2">
+        <div className="w-10 h-1 rounded-full bg-line mx-auto mb-3 shrink-0" />
+        <div className="flex items-center justify-between mb-3 shrink-0">
+          <h2 className="font-bold text-[17px]">{t('common.language')}</h2>
+          <button onClick={onClose} aria-label="Close"
+            className="press w-8 h-8 rounded-full grid place-items-center text-ink-3 hover:text-ink">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="space-y-2 overflow-y-auto flex-1 pr-1 overscroll-contain">
           {LANGS.map(l => (
             <button key={l.code} disabled={!l.ready}
               onClick={() => { setLang(l.code); onClose() }}
@@ -114,7 +120,7 @@ export function LangSheet({ onClose }) {
             </button>
           ))}
         </div>
-        <p className="text-[11.5px] text-ink-3 mt-4 leading-relaxed">{t('settings.langNote')}</p>
+        <p className="text-[11.5px] text-ink-3 mt-3 shrink-0 leading-relaxed">{t('settings.langNote')}</p>
       </div>
     </div>
   )
@@ -137,8 +143,8 @@ export function Speaker({ text, className = '' }) {
   if (!on) return null
   return (
     <button onClick={() => say(text)} aria-label="Read aloud"
-      className={`press raise-sm w-11 h-11 shrink-0 grid place-items-center rounded-full text-ink-2 ${className}`}>
-      <Icon name="speaker" size={19} />
+      className={`press raise-sm w-11 h-11 shrink-0 grid place-items-center rounded-full text-[17px] ${className}`}>
+      🔊
     </button>
   )
 }
@@ -272,26 +278,32 @@ export function TextField({ value, onChange, placeholder, id, type = 'text' }) {
   )
 }
 
+/**
+ * An option may carry `off` — a short reason it cannot be chosen. It stays
+ * visible, greyed and unclickable, with the reason underneath, because a chip
+ * that silently disappears is harder to understand than one that says why.
+ */
 export function Chips({ value, onChange, options, cols = 3 }) {
   return (
     <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
       {options.map(o => (
-        <button key={String(o.v)} onClick={() => onChange(o.v)}
-          className={`press min-h-[50px] rounded-xl px-2 text-[14px] font-semibold
-            ${value === o.v ? 'btn-solid text-white' : 'raise text-ink-2'}`}>
+        <button key={String(o.v)} onClick={() => !o.off && onChange(o.v)}
+          disabled={!!o.off} aria-disabled={!!o.off} title={o.off || undefined}
+          className={`min-h-[50px] rounded-xl px-2 text-[14px] font-semibold leading-tight
+            ${o.off ? 'bg-line-2/60 text-ink-3/55 cursor-not-allowed'
+              : value === o.v ? 'press btn-solid text-white' : 'press raise text-ink-2'}`}>
           {o.l}
+          {o.off && <span className="block text-[10px] font-medium opacity-80 mt-0.5">{o.off}</span>}
         </button>
       ))}
     </div>
   )
 }
 
-export function Empty({ icon = 'inbox', title, sub }) {
+export function Empty({ icon = '📭', title, sub }) {
   return (
     <div className="text-center py-14 px-6">
-      <div className="sink w-14 h-14 rounded-2xl grid place-items-center mx-auto mb-3 text-ink-3">
-        <Icon name={icon} size={26} />
-      </div>
+      <div className="text-4xl mb-3 opacity-70">{icon}</div>
       <div className="font-semibold text-ink">{title}</div>
       {sub && <div className="text-[13px] text-ink-3 mt-1">{sub}</div>}
     </div>
@@ -319,7 +331,7 @@ export function Notice({ tone = 'info', title, children, action }) {
 export function SimBadge({ children = 'Simulated — not a real government system' }) {
   return (
     <div className="flex items-start gap-2 rounded-xl border border-due/30 bg-due-soft px-3 py-2">
-      <Icon name="alert" size={15} className="mt-0.5 shrink-0" />
+      <span className="text-[13px] leading-none mt-0.5">⚠️</span>
       <span className="text-[11.5px] font-semibold text-due leading-snug">{children}</span>
     </div>
   )

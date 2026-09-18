@@ -1,5 +1,5 @@
 import Dexie from 'dexie'
-import { households, members, tasks, pastEncounters, earningsHistory, ASHA } from '../data/seed'
+import { allHouseholds, allMembers, tasks, pastEncounters, earningsHistory, ASHA } from '../data/seed'
 
 export const db = new Dexie('ashaflow')
 
@@ -40,7 +40,22 @@ db.version(3).stores({
   customForms: 'code, name, createdAt',
 })
 
-const SEED_VERSION = 2
+db.version(4).stores({
+  households: 'id, village, houseNo',
+  members: 'id, householdId, role',
+  encounters: 'id, householdId, memberId, type, createdAt, synced',
+  outbox: 'encounterId, queuedAt',
+  earnings: 'id, encounterId, date, claimed',
+  tasks: 'id, householdId, level',
+  meta: 'key',
+  formSubmissions: 'id, formCode, memberId, householdId, createdAt, synced',
+  learnedFacts: 'key, memberId',
+  customForms: 'code, name, createdAt',
+  // which scheme each person is on, recorded at intake or later
+  enrolments: 'id, memberId, householdId, scheme',
+})
+
+const SEED_VERSION = 3
 
 export async function ensureSeeded() {
   const seeded = await db.meta.get('seeded')
@@ -51,8 +66,8 @@ export async function ensureSeeded() {
     await db.encounters.where('id').startsWith('e-past-').delete()
   }
   await db.transaction('rw', db.households, db.members, db.tasks, db.encounters, db.earnings, db.meta, async () => {
-    await db.households.bulkPut(households)
-    await db.members.bulkPut(members)
+    await db.households.bulkPut(allHouseholds)
+    await db.members.bulkPut(allMembers)
     await db.tasks.bulkPut(tasks)
     await db.encounters.bulkPut(pastEncounters.map(e => ({
       ...e, createdAt: e.date, synced: 1, facts: e.facts || {}, outputCount: e.outputs,
@@ -84,8 +99,15 @@ export async function createHousehold(d) {
   const row = {
     id,
     houseNo: d.houseNo, headName: d.headName, village: d.village,
+    hamlet: d.hamlet || '', mobile: d.mobile || '', caste: d.caste || '',
+    religion: d.religion || '',
     membersCount: d.membersCount ?? 1,
-    bplCard: !!d.bplCard, hasToilet: !!d.hasToilet, waterSource: d.waterSource || 'handpump',
+    bplCard: !!d.bplCard, rationCard: d.rationCard || '',
+    // tri-state: null means nobody answered it yet, which is not the same as No
+    pmjay: d.pmjay ?? null, bankAccount: d.bankAccount ?? null,
+    hasToilet: d.hasToilet ?? null, waterSource: d.waterSource || '',
+    cookingFuel: d.cookingFuel || '', houseType: d.houseType || '',
+    note: d.note || '',
     createdAt: new Date().toISOString(), addedInField: true,
     facts: {
       'household.houseNo': d.houseNo,
@@ -93,12 +115,38 @@ export async function createHousehold(d) {
       'household.village': d.village,
       'household.membersCount': d.membersCount ?? 1,
       'household.bplCard': !!d.bplCard,
-      'household.hasToilet': !!d.hasToilet,
-      'household.waterSource': d.waterSource || 'handpump',
+      ...(d.hasToilet == null ? {} : { 'household.hasToilet': !!d.hasToilet }),
+      ...(d.waterSource ? { 'household.waterSource': d.waterSource } : {}),
+      ...(d.hamlet ? { 'household.hamlet': d.hamlet } : {}),
+      ...(d.mobile ? { 'household.mobile': Number(d.mobile) } : {}),
+      ...(d.caste ? { 'household.caste': d.caste } : {}),
+      ...(d.religion ? { 'household.religion': d.religion } : {}),
+      ...(d.rationCard ? { 'household.rationCard': d.rationCard } : {}),
+      ...(d.cookingFuel ? { 'household.cookingFuel': d.cookingFuel } : {}),
+      ...(d.houseType ? { 'household.houseType': d.houseType } : {}),
+      ...(d.pmjay == null ? {} : { 'household.pmjay': !!d.pmjay }),
+      ...(d.bankAccount == null ? {} : { 'household.bankAccount': !!d.bankAccount }),
     },
   }
   await db.households.put(row)
   return row
+}
+
+/** Put a person on a scheme. One row per person per scheme. */
+export async function createEnrolment({ memberId, householdId, scheme, label, phase, state = 'active' }) {
+  const id = 'en' + crypto.randomUUID().slice(0, 8)
+  const row = {
+    id, memberId, householdId, scheme, label: label || scheme,
+    phase: phase || 'Newly enrolled', state,
+    updated: new Date().toISOString(), addedInField: true,
+  }
+  await db.enrolments.put(row)
+  return row
+}
+
+export async function enrolmentsFor(memberIds = []) {
+  if (!memberIds.length) return []
+  return db.enrolments.where('memberId').anyOf(memberIds).toArray()
 }
 
 export async function createMember(d) {
@@ -108,6 +156,8 @@ export async function createMember(d) {
     sex: d.sex, role: d.role,
     ...(d.lmp ? { lmp: d.lmp } : {}),
     ...(d.dob ? { dob: d.dob } : {}),
+    ...(d.relation ? { relation: d.relation } : {}),
+    ...(d.mobile ? { mobile: String(d.mobile) } : {}),
     createdAt: new Date().toISOString(), addedInField: true,
   }
   await db.members.put(row)

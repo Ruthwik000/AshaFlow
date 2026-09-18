@@ -1,9 +1,13 @@
 // Synthetic demonstration data. No real person's health information.
-const iso = d => d.toISOString().slice(0, 10)
+/* Local calendar date, not UTC. toISOString() rolls the day backwards for
+   anyone east of Greenwich, which made a task seeded "11 days ago" read as
+   12 days overdue on an Indian phone. */
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const ago = n => iso(new Date(Date.now() - n * 86400000))
 const ahead = n => iso(new Date(Date.now() + n * 86400000))
 
-export const ASHA = { id: 'ASHA-RMP-014', name: 'Sunita Yadav', village: 'Rampur', pin: '1234' }
+export const ASHA = { id: 'ASHA-RMP-014', name: 'Sunita Yadav', village: 'Rampur', pin: '1234',
+                      email: 'sunita.yadav@ashaflow.demo' }
 
 export const households = [
   {
@@ -207,6 +211,116 @@ export const OFFICER_ALERTS = [
   { id: 'a3', level: 'info', title: '27 high-risk pregnancies identified this month',
     detail: 'Across all four villages. Up from 19 last month, consistent with higher ANC registration.' },
 ]
+
+/* =========================================================================
+   The rest of her caseload.
+
+   The four households above are hand-written because the tasks, scheme
+   enrolments and the beneficiary portal all point at them by id. The rest are
+   generated from a fixed seed so the numbers are realistic and stable between
+   reloads — an ASHA covers roughly 1,000 people, and what matters for the
+   screens is the shape of the population, not the individual names.
+   ========================================================================= */
+
+const SURNAMES = ['Yadav', 'Kumar', 'Devi', 'Prasad', 'Singh', 'Verma', 'Pal', 'Maurya',
+  'Nishad', 'Sharma', 'Gupta', 'Lal', 'Chauhan', 'Rawat', 'Tiwari', 'Kushwaha']
+const MEN = ['Ramesh', 'Suresh', 'Dinesh', 'Mahesh', 'Rajesh', 'Vijay', 'Arun', 'Sunil',
+  'Anil', 'Manoj', 'Sanjay', 'Raju', 'Shyam', 'Govind', 'Prem', 'Hari', 'Kamal', 'Naresh']
+const WOMEN = ['Sunita', 'Rekha', 'Meena', 'Pooja', 'Anjali', 'Kavita', 'Savitri', 'Geeta',
+  'Usha', 'Radha', 'Seema', 'Nisha', 'Laxmi', 'Rani', 'Sarita', 'Mamta', 'Asha', 'Guddi']
+const KIDS = ['Aarav', 'Vivaan', 'Aditya', 'Rohan', 'Kartik', 'Ansh', 'Riya', 'Anaya',
+  'Diya', 'Kiara', 'Myra', 'Chotu', 'Golu', 'Pinky', 'Sonu', 'Baby']
+
+/** Deterministic pseudo-random, so the caseload is the same every reload. */
+function rng(seed) {
+  let x = seed
+  return () => { x = (x * 1103515245 + 12345) & 0x7fffffff; return x / 0x7fffffff }
+}
+
+function generateCaseload() {
+  const r = rng(20260919)
+  const pick = a => a[Math.floor(r() * a.length)]
+  const int = (lo, hi) => lo + Math.floor(r() * (hi - lo + 1))
+
+  // Enough households to make the caseload numbers mean something, and few
+  // enough to scroll through in a demo.
+  const villages = [
+    { name: 'Rampur', houses: 6 },
+    { name: 'Kishanpur', houses: 4 },
+    { name: 'Bela', houses: 3 },
+    { name: 'Sohagpur', houses: 2 },
+  ]
+
+  const households = []
+  const members = []
+  let house = 40                       // the hand-written ones use 7, 14, 22, 31
+
+  for (const v of villages) {
+    for (let i = 0; i < v.houses; i++) {
+      house += 1
+      const id = 'h' + String(house).padStart(3, '0')
+      const surname = pick(SURNAMES)
+      const head = `${pick(MEN)} ${surname}`
+      const size = int(3, 8)
+      const bpl = r() < 0.42
+
+      households.push({
+        id, houseNo: String(house), headName: head, village: v.name,
+        membersCount: size, bplCard: bpl, hasToilet: r() < 0.71,
+        waterSource: pick(['tap', 'handpump', 'handpump', 'well']),
+        facts: {
+          'household.houseNo': String(house), 'household.headName': head,
+          'household.village': v.name, 'household.membersCount': size,
+          'household.bplCard': bpl, 'household.hasToilet': r() < 0.71,
+          'household.waterSource': 'handpump',
+          'household.block': 'Rampur block', 'household.district': 'Barabanki',
+        },
+      })
+
+      // head of family
+      members.push({ id: id + 'a', householdId: id, name: head, age: int(26, 52), sex: 'M',
+        role: r() < 0.22 ? 'elder' : 'adult' })
+
+      // wife — with this few households, place the pregnancies deliberately so
+      // the matrix always has something to show
+      const wifeAge = int(20, 40)
+      const pregnant = [2, 5, 9, 13].includes(house - 40)
+      const wife = `${pick(WOMEN)} ${surname === 'Devi' ? 'Devi' : pick(['Devi', surname])}`
+      members.push({
+        id: id + 'b', householdId: id, name: wife, age: wifeAge, sex: 'F',
+        role: pregnant ? 'pregnant' : (r() < 0.2 ? 'mother' : 'adult'),
+        ...(pregnant ? { lmp: ago(int(30, 240)) } : {}),
+      })
+
+      // children
+      const kids = Math.max(0, size - 2 - (r() < 0.3 ? 1 : 0))
+      for (let k = 0; k < kids && k < 3; k++) {
+        // one newborn, and a decent spread of under-fives
+        const months = (house - 40 === 3 && k === 0) ? int(0, 1)
+          : r() < 0.42 ? int(2, 58) : int(60, 190)
+        const sex = r() < 0.49 ? 'M' : 'F'
+        members.push({
+          id: id + 'c' + k, householdId: id,
+          name: pick(KIDS), age: Math.floor(months / 12), sex,
+          role: months < 12 ? 'infant' : months < 60 ? 'child' : 'adolescent',
+          ...(months < 60 ? { dob: ago(Math.round(months * 30.4)) } : {}),
+        })
+      }
+
+      // a grandparent in about a third of households
+      if (r() < 0.34) {
+        members.push({ id: id + 'e', householdId: id,
+          name: `${r() < 0.5 ? pick(WOMEN) : pick(MEN)} ${surname}`,
+          age: int(58, 79), sex: r() < 0.55 ? 'F' : 'M', role: 'elder' })
+      }
+    }
+  }
+  return { households, members }
+}
+
+const generated = generateCaseload()
+export const allHouseholds = [...households, ...generated.households]
+export const allMembers = [...members, ...generated.members]
 
 // ---- Scheme enrolment per member, with the phase each one is at ----------
 export const ENROLMENTS = [

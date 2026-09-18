@@ -4,15 +4,49 @@ import { db } from '../../db/db'
 import { useStore } from '../../store/useStore'
 import { WOMAN } from '../../data/seed'
 import { ENROLMENTS, PROOFS } from '../../data/seed'
-import { TopBar, Card, Section, List, Row, Btn, Pill, Notice, fmtDate, daysFromNow } from '../../components/ui'
+import { memberStatus, householdSummary } from '../../engine/caseload'
 import Icon from '../../components/Icon'
+import { TopBar, Card, Section, List, Row, Btn, Pill, Notice, fmtDate, daysFromNow } from '../../components/ui'
 
-const ROLE_ICON = { pregnant: 'pregnant', mother: 'user', child: 'baby', infant: 'baby', elder: 'heart', adult: 'user' }
+const KIND = {
+  pregnant:   { icon: 'baby',   tone: 'text-brand bg-brand-soft' },
+  newborn:    { icon: 'baby',   tone: 'text-late bg-late-soft' },
+  infant:     { icon: 'baby',   tone: 'text-due bg-due-soft' },
+  under5:     { icon: 'growth', tone: 'text-due bg-due-soft' },
+  mother:     { icon: 'user',   tone: 'text-info bg-info-soft' },
+  adolescent: { icon: 'user',   tone: 'text-ink-2 bg-line-2' },
+  ncd:        { icon: 'pulse',  tone: 'text-info bg-info-soft' },
+  elder:      { icon: 'pulse',  tone: 'text-info bg-info-soft' },
+  adult:      { icon: 'user',   tone: 'text-ink-3 bg-line-2' },
+}
 const ENROL_LEVEL = { active: 'done', blocked: 'late', due: 'due', waiting: 'info' }
 const PROOF_LEVEL = { verified: 'done', submitted: 'info', mismatch: 'late', missing: 'due' }
-const PROOF_ICON = { aadhaar: 'id', bank: 'bank', mcp: 'clipboard', visit: 'calendar', ration: 'card', birth: 'baby', nikshay: 'lungs' }
+const PROOF_ICON = { aadhaar: '▣', bank: '▤', mcp: '▥', visit: '▦', ration: '▧', birth: '▨', nikshay: '▩' }
 
 const TABS = [['schemes', 'Schemes'], ['proofs', 'Proofs'], ['people', 'People'], ['history', 'History']]
+
+const WATER_LABEL = { tap: 'Tap', handpump: 'Hand pump', well: 'Well', other: 'Other' }
+const FUEL_LABEL = { lpg: 'LPG', wood: 'Wood', mixed: 'LPG and wood' }
+const HOUSE_LABEL = { kutcha: 'Kutcha', semi: 'Semi-pucca', pucca: 'Pucca' }
+const yn = v => (v === true ? 'Yes' : v === false ? 'No' : null)
+
+/** Everything recorded about the house itself, shown only where it exists. */
+function householdDetails(h) {
+  return [
+    ['House number', h.houseNo],
+    ['Village', [h.village, h.hamlet].filter(Boolean).join(' · ')],
+    ['Mobile', h.mobile],
+    ['Ration card', h.rationCard === 'none' ? 'None' : h.rationCard || (h.bplCard ? 'BPL' : null)],
+    ['Ayushman Bharat card', yn(h.pmjay)],
+    ["Bank account in her name", yn(h.bankAccount)],
+    ['Category', h.caste],
+    ['Toilet in the house', yn(h.hasToilet)],
+    ['Drinking water', WATER_LABEL[h.waterSource] || h.waterSource],
+    ['Cooking fuel', FUEL_LABEL[h.cookingFuel]],
+    ['House type', HOUSE_LABEL[h.houseType]],
+    ['People recorded', h.membersCount],
+  ].filter(([, v]) => v !== null && v !== undefined && v !== '')
+}
 
 export default function Family() {
   const { id } = useParams()
@@ -27,16 +61,19 @@ export default function Family() {
       db.members.where('householdId').equals(id).toArray(),
       db.tasks.where('householdId').equals(id).toArray(),
       db.encounters.where('householdId').equals(id).toArray(),
-    ]).then(([h, m, t, e]) =>
-      setD({ h, m, t, e: e.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) }))
+      db.enrolments.where('householdId').equals(id).toArray(),
+    ]).then(([h, m, t, e, en]) =>
+      setD({ h, m, t, en, e: e.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) }))
   }, [id])
 
   if (!d?.h) return <div className="p-6 text-ink-3">Loading…</div>
   const { h, m, t, e } = d
   const ids = m.map(x => x.id)
-  const enrol = ENROLMENTS.filter(x => ids.includes(x.memberId))
+  // seeded enrolments plus anything recorded on this phone at intake
+  const enrol = [...ENROLMENTS.filter(x => ids.includes(x.memberId)), ...(d.en || [])]
   const proofs = PROOFS.filter(p => p.householdId === id)
   const nameOf = mid => m.find(x => x.id === mid)?.name || '—'
+  const summary = householdSummary(m)
   const blocked = enrol.filter(x => x.state === 'blocked').length
   const missing = proofs.filter(p => p.state === 'missing' || p.state === 'mismatch').length
 
@@ -47,13 +84,14 @@ export default function Family() {
       <main className="flex-1 px-4 py-4 pb-32">
         <div className="raise rounded-2xl p-1 mb-4">
           <div className="grid grid-cols-4 divide-x divide-line-2">
-            {[[h.membersCount, 'people'], [enrol.length, 'schemes'], [proofs.length, 'proofs'], [t.length, 'due']]
-              .map(([v, l]) => (
-                <div key={l} className="px-1 py-2.5 text-center">
-                  <div className="text-[19px] font-bold num leading-none">{v}</div>
-                  <div className="text-[10.5px] text-ink-3 mt-1">{l}</div>
-                </div>
-              ))}
+            {[[m.length, 'people'], [summary.pregnant, 'pregnant'],
+              [summary.under5, 'under 5'], [t.length, 'due']].map(([v, l]) => (
+              <div key={l} className="px-1 py-2.5 text-center">
+                <div className={`text-[19px] font-bold num leading-none
+                  ${l === 'due' && v > 0 ? 'text-late' : l === 'pregnant' && v > 0 ? 'text-brand' : ''}`}>{v}</div>
+                <div className="text-[10.5px] text-ink-3 mt-1">{l}</div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -76,8 +114,13 @@ export default function Family() {
 
         {tab === 'schemes' && (
           <div className="space-y-2.5">
+            {enrol.length === 0 && (
+              <div className="px-1 py-6 text-[13px] text-ink-3">
+                Nobody in this household is on a scheme yet. Open the People tab to see who is eligible.
+              </div>
+            )}
             {enrol.map((x, i) => (
-              <Card key={i} className="p-4">
+              <Card key={x.id || `en${i}`} className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold text-[15px] leading-tight">{x.label}</div>
@@ -107,7 +150,7 @@ export default function Family() {
               <Card key={p.id} className="p-4">
                 <div className="flex items-start gap-3">
                   <span className="raise-sm w-10 h-10 shrink-0 rounded-xl grid place-items-center text-brand text-[15px]">
-                    <Icon name={PROOF_ICON[p.kind] || 'doc'} size={18} />
+                    {PROOF_ICON[p.kind] || '▤'}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold text-[14.5px] leading-tight">{p.label}</div>
@@ -121,8 +164,7 @@ export default function Family() {
                 </div>
                 {(p.state === 'missing' || p.state === 'mismatch') && (
                   <Btn size="sm" tone="ghost" className="mt-3 w-full">
-                    <span className="inline-flex items-center gap-1.5"><Icon name="camera" size={15} />
-                      {p.state === 'missing' ? 'Capture this document' : 'Replace it'}</span>
+                    {p.state === 'missing' ? '📷 Capture this document' : '📷 Replace it'}
                   </Btn>
                 )}
               </Card>
@@ -137,27 +179,71 @@ export default function Family() {
 
         {tab === 'people' && (
           <>
-            <List>
+            <div className="space-y-2.5">
               {m.map(p => {
-                const asBeneficiary = Object.entries(WOMAN)
-                  .find(([, v]) => v.memberId === p.id)?.[0]
+                const st = memberStatus(p)
+                const k = KIND[st.kind] || KIND.adult
+                const mine = enrol.filter(x => x.memberId === p.id)
+                const asBeneficiary = Object.entries(WOMAN).find(([, v]) => v.memberId === p.id)?.[0]
                 return (
-                  <Row key={p.id} icon={<Icon name={ROLE_ICON[p.role] || 'user'} size={18} />}
-                    title={p.name}
-                    sub={`${p.age === 0 ? `${p.dob ? Math.round((Date.now() - new Date(p.dob)) / 2629800000) : 0} months` : `${p.age} years`} · ${p.role} · ${enrol.filter(x => x.memberId === p.id).length} schemes`}
-                    right={asBeneficiary
-                      ? <Btn size="sm" tone="ghost"
-                          onClick={() => { setWomanMode(asBeneficiary); nav('/woman') }}>
-                          Her portal
-                        </Btn>
-                      : undefined} />
+                  <Card key={p.id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <span className={`w-11 h-11 shrink-0 rounded-xl grid place-items-center ${k.tone}`}>
+                        <Icon name={k.icon} size={20} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-[16px] leading-tight">{p.name}</div>
+                        <div className="text-[12.5px] text-ink-3 mt-0.5">
+                          {p.sex === 'F' ? 'Female' : 'Male'} · {p.role}
+                        </div>
+                        <div className={`text-[13.5px] font-semibold mt-1.5
+                          ${st.urgent ? 'text-late' : st.kind === 'pregnant' ? 'text-brand' : 'text-ink-2'}`}>
+                          {st.label}
+                        </div>
+                        {st.detail && <div className="text-[12.5px] text-ink-2 mt-0.5">{st.detail}</div>}
+                      </div>
+                    </div>
+
+                    {mine.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-line-2">
+                        <div className="text-[11.5px] text-ink-3 mb-1.5">Enrolled in</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {mine.map((x, i) => (
+                            <span key={i} className={`text-[11.5px] font-semibold px-2 py-0.5 rounded
+                              ${x.state === 'blocked' ? 'bg-late-soft text-late'
+                                : x.state === 'due' ? 'bg-due-soft text-due' : 'bg-brand-soft text-brand'}`}>
+                              {x.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {asBeneficiary && (
+                      <Btn size="sm" tone="ghost" className="mt-3 w-full"
+                        onClick={() => { setWomanMode(asBeneficiary); nav('/woman') }}>
+                        Open her own portal
+                      </Btn>
+                    )}
+                  </Card>
                 )
               })}
-            </List>
+            </div>
             <Btn full tone="ghost" size="md" className="mt-3"
               onClick={() => nav(`/asha/people/new?household=${h.id}`)}>
               ＋ Add a person to this family
             </Btn>
+
+            <Section title="Household details" className="pt-5">
+              <List>
+                {householdDetails(h).map(([k, v]) => (
+                  <Row key={k} title={k} right={<span className="text-[13px] text-ink-2 font-medium">{v}</span>} />
+                ))}
+              </List>
+              {h.note && (
+                <p className="text-[12.5px] text-ink-2 mt-2.5 px-1 leading-relaxed">{h.note}</p>
+              )}
+            </Section>
           </>
         )}
 

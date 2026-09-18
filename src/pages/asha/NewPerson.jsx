@@ -2,15 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { db, createMember } from '../../db/db'
 import { findForm } from '../../data/formRegistry'
+import {
+  SEXES, RELATIONS, STATUSES, reconcile, statusBlocked, relationBlocked, statusFromAge,
+} from '../../engine/roles'
 import Icon from '../../components/Icon'
 import { TopBar, Card, Btn, Field, TextField, Chips, Notice, List, Row } from '../../components/ui'
 
-const ROLES = [
-  { v: 'pregnant', l: 'Pregnant' }, { v: 'mother', l: 'Mother' },
-  { v: 'infant', l: 'Infant' }, { v: 'child', l: 'Child' },
-  { v: 'adult', l: 'Adult' }, { v: 'elder', l: 'Elder' },
-]
-const SEX = [{ v: 'F', l: 'Female' }, { v: 'M', l: 'Male' }]
 const CASTE = [{ v: 'SC', l: 'SC' }, { v: 'ST', l: 'ST' }, { v: 'OBC', l: 'OBC' }, { v: 'GEN', l: 'General' }]
 
 export default function NewPerson() {
@@ -22,10 +19,22 @@ export default function NewPerson() {
 
   const [households, setHouseholds] = useState([])
   const [householdId, setHouseholdId] = useState(preHousehold || '')
-  const [d, setD] = useState({ name: '', age: '', sex: 'F', role: 'pregnant',
-                               husbandName: '', mobile: '', caste: '', lmp: '', dob: '' })
+  const [d, setD] = useState({ name: '', age: '', sex: 'F', role: 'pregnant', relation: 'wife',
+                               husbandName: '', mobile: '', caste: '', lmp: '', dob: '', note: null })
   const [busy, setBusy] = useState(false)
-  const set = (k, v) => setD(x => ({ ...x, [k]: v }))
+
+  /* Sex, relation and status have to agree — a father is not pregnant — so
+     every edit goes through the same rules the household form uses. */
+  const set = (k, v) => setD(x => {
+    const { person, note } = reconcile(x, { [k]: v })
+    return { ...person, note }
+  })
+  const setAge = age => setD(x => {
+    const guess = statusFromAge(age)
+    const patch = guess && !x.touchedRole ? { age, role: guess } : { age }
+    const { person, note } = reconcile(x, patch)
+    return { ...person, note }
+  })
 
   useEffect(() => { db.households.toArray().then(setHouseholds) }, [])
   useEffect(() => { if (formCode) findForm(formCode).then(setForm) }, [formCode])
@@ -76,14 +85,30 @@ export default function NewPerson() {
             <TextField id="pname" value={d.name} onChange={v => set('name', v)} placeholder="Full name" />
           </Field>
           <Field label="Age in years" required id="page">
-            <TextField id="page" type="number" value={d.age} onChange={v => set('age', v)} placeholder="e.g. 24" />
+            <TextField id="page" type="number" value={d.age} onChange={setAge} placeholder="e.g. 24" />
           </Field>
           <Field label="Sex" required>
-            <Chips value={d.sex} onChange={v => set('sex', v)} options={SEX} cols={2} />
+            <Chips value={d.sex} onChange={v => set('sex', v)} options={SEXES} cols={2} />
           </Field>
-          <Field label="Who is she to this household?" required>
-            <Chips value={d.role} onChange={v => set('role', v)} options={ROLES} cols={3} />
+          <Field label="Relation to the head of the household" required>
+            <Chips value={d.relation} onChange={v => set('relation', v)} cols={3}
+              options={RELATIONS.map(r => ({ ...r, off: relationBlocked(r.v, d) }))} />
           </Field>
+          <Field label="Status" required hint="This decides which schemes and visits apply.">
+            <Chips value={d.role} cols={3}
+              onChange={v => setD(x => {
+                const { person, note } = reconcile(x, { role: v })
+                return { ...person, touchedRole: true, note }
+              })}
+              options={STATUSES.map(x => ({ ...x, off: statusBlocked(x.v, d) }))} />
+          </Field>
+
+          {d.note && (
+            <div className="flex items-start gap-1.5 rounded-lg bg-info-soft px-2.5 py-2">
+              <span className="text-info shrink-0 mt-0.5"><Icon name="info" size={12} /></span>
+              <span className="text-[11.5px] text-info leading-snug">That did not fit, so I {d.note}.</span>
+            </div>
+          )}
         </Card>
 
         {d.role === 'pregnant' && (

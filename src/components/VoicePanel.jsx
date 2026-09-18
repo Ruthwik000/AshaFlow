@@ -34,6 +34,7 @@ export default function VoicePanel({ systemFor, localAnswer, onExchange, onClose
   const [muted, setMuted] = useState(false)
   const [partial, setPartial] = useState('')
   const agent = useRef(null)
+  const engineRef = useRef(null)
   const cap = capabilities()
 
   // A live socket and an open microphone must never outlive the screen.
@@ -54,8 +55,16 @@ export default function VoicePanel({ systemFor, localAnswer, onExchange, onClose
       localAnswer,
       onState: setState,
       onPartial: setPartial,
-      onTurn: m => onExchange?.({ ...m, voice: true }),
-      onEngine: (e, why) => { setEngine(e); if (why) setEngineNote(why) },
+      onTurn: m => onExchange?.({
+        ...m,
+        voice: true,
+        via: engineRef.current === 'live' ? 'gemini live' : 'local voice',
+      }),
+      onEngine: (e, why) => {
+        engineRef.current = e
+        setEngine(e)
+        if (why) setEngineNote(why)
+      },
       onError: setErr,
     })
     agent.current = a

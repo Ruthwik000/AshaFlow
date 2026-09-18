@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { TopBar, Card, Btn, Notice, Section, Pill } from '../../components/ui'
 import Icon from '../../components/Icon'
+import { TopBar, Card, Btn, Notice, Section, Pill } from '../../components/ui'
 
 const DRAFT = [
   { label: 'Name of beneficiary',        type: 'text',    req: true,  maps: 'person.name',        page: 4,  conf: 0.97 },
@@ -43,13 +43,14 @@ export default function AddProgramme() {
       <main className="flex-1 px-4 py-4 space-y-5 pb-8">
         {stage === 'upload' && (
           <>
-            <Notice tone="agent" title="What this agent does">
-              It reads a published government data-entry form, extracts every field, and proposes a
-              mapping onto the canonical record. It writes to a <i>drafts</i> table — a person
-              approves each row before anything reaches the field.
+            <Notice tone="agent" title="What this screen does">
+              It reads a published government data-entry form, pulls out every field and proposes a
+              mapping onto the canonical record. There is no server and nothing runs on its own: the
+              model is called from this page, the result lands in a <i>drafts</i> list, and you
+              approve each row before it reaches a single phone.
             </Notice>
             <Card className="p-8 text-center border-dashed">
-              <div className="sink w-16 h-16 rounded-2xl grid place-items-center mx-auto mb-3 text-ink-2"><Icon name="doc" size={30} /></div>
+              <div className="mx-auto w-fit mb-3 text-ink-3"><Icon name="doc" size={34} /></div>
               <div className="font-semibold text-[15px]">Drop a programme PDF here</div>
               <div className="text-[12.5px] text-ink-3 mt-1">RCH manual, CBAC form, HBNC format…</div>
             </Card>
@@ -63,7 +64,7 @@ export default function AddProgramme() {
               <div key={s} className="flex items-center gap-3">
                 <span className={`w-6 h-6 shrink-0 rounded-full grid place-items-center text-[12px] font-bold
                   ${step > i ? 'bg-brand text-white' : step === i ? 'bg-agent-soft text-agent' : 'bg-line-2 text-ink-3'}`}>
-                  {step > i ? <Icon name="check" size={13} stroke={3} /> : i + 1}
+                  {step > i ? '✓' : i + 1}
                 </span>
                 <span className={`text-[14px] ${step > i ? 'text-ink font-medium' : 'text-ink-3'}`}>{s}</span>
               </div>

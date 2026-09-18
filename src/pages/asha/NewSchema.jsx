@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PATH_LABELS } from '../../data/canonical'
 import { TopBar, Card, Btn, Notice, Section, List, Row, Pill } from '../../components/ui'
-import Icon from '../../components/Icon'
 
 const AGENT_DRAFT = [
   { label: 'Name of beneficiary',       type: 'text',   req: true,  maps: 'person.name',       page: 4,  conf: 0.97 },
@@ -44,14 +43,13 @@ export default function NewSchema() {
 
         {!mode && (
           <>
-            {[{ k: 'pdf', mark: 'doc', t: 'Read it from a PDF', tag: 'Agent',
+            {[{ k: 'pdf', mark: '◳', t: 'Read it from a PDF', tag: 'Reads it',
                 b: 'Upload the published government form. Every field is extracted, matched to the canonical record and shown with a confidence score for you to approve.' },
-              { k: 'manual', mark: 'edit', t: 'Add the fields by hand', tag: null,
+              { k: 'manual', mark: '✎', t: 'Add the fields by hand', tag: null,
                 b: 'For a short form, or when you already know exactly which fields you need.' }].map(o => (
               <button key={o.k} onClick={() => setMode(o.k)} className="press raise w-full text-left rounded-3xl p-5">
                 <div className="flex items-start gap-3.5">
-                  <span className="raise-sm w-12 h-12 shrink-0 rounded-2xl grid place-items-center text-brand">
-                    <Icon name={o.mark} size={22} /></span>
+                  <span className="raise-sm w-12 h-12 shrink-0 rounded-2xl grid place-items-center text-brand text-[20px]">{o.mark}</span>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <div className="font-bold text-[17px] tracking-[-0.01em]">{o.t}</div>
@@ -68,12 +66,12 @@ export default function NewSchema() {
         {mode === 'pdf' && stage === 'idle' && (
           <>
             <Notice tone="agent" title="What happens to the PDF">
-              It is split, embedded, and each extracted label retrieves its nearest canonical matches before
-              anything is proposed. The result goes to a drafts list — a person approves each row before
-              it reaches any phone.
+              It is read on this phone: every printed label is pulled out and matched against the
+              canonical record, and each match is shown with the confidence behind it. Nothing is
+              published until you approve it, and no server sees the file.
             </Notice>
             <div className="raise rounded-3xl p-8 text-center border-dashed">
-              <div className="sink w-14 h-14 rounded-2xl grid place-items-center mx-auto mb-3 text-ink-3"><Icon name="doc" size={26} /></div>
+              <div className="text-[34px] mb-3 opacity-70">◳</div>
               <div className="font-bold text-[15px]">Drop a programme PDF</div>
               <div className="text-[12.5px] text-ink-3 mt-1">RCH manual · CBAC form · HBNC format</div>
             </div>
@@ -87,7 +85,7 @@ export default function NewSchema() {
               <div key={s} className="flex items-center gap-3">
                 <span className={`w-6 h-6 shrink-0 rounded-full grid place-items-center text-[11px] font-bold
                   ${step > i ? 'btn-solid text-white' : step === i ? 'bg-agent-soft text-agent' : 'sink text-ink-3'}`}>
-                  {step > i ? <Icon name="check" size={13} stroke={3} /> : i + 1}
+                  {step > i ? '✓' : i + 1}
                 </span>
                 <span className={`text-[14px] ${step > i ? 'text-ink font-medium' : 'text-ink-3'}`}>{s}</span>
               </div>

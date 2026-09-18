@@ -99,6 +99,33 @@ export default function FormFill() {
           </p>
         </Card>
 
+        {/* What the record already answered, in plain sight. A number on a
+            progress bar is a claim; this is the evidence for it. */}
+        {filled.stats.known > 0 && (
+          <Section title={`Filled from her record · ${filled.stats.known}`}>
+            <Card className="overflow-hidden">
+              <div className="divide-y divide-line-2">
+                {filled.sections.flatMap(sec => sec.fields)
+                  .filter(f => f.source === 'record' || f.source === 'derived')
+                  .map(f => (
+                    <div key={f.id} className="px-4 py-2.5 flex items-start gap-3">
+                      <span className={`shrink-0 mt-0.5 ${SRC[f.source].c}`}>
+                        <Icon name={f.source === 'derived' ? 'pulse' : 'check'} size={14} stroke={2.2} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12px] text-ink-3">{f.label}</div>
+                        <div className="text-[14.5px] font-semibold num mt-0.5">{show(f.value)}</div>
+                      </div>
+                      <span className={`text-[11px] font-semibold shrink-0 mt-1 ${SRC[f.source].c}`}>
+                        {SRC[f.source].l}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          </Section>
+        )}
+
         {askList.length > 0 && (
           <Section title={`Needs your answer · ${answeredCount} of ${askList.length} done`}>
             <div className="space-y-3">

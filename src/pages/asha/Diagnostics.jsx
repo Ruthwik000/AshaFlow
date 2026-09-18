@@ -7,9 +7,11 @@ import { TopBar, Card, Section, Btn, Pill, Notice, List, Row } from '../../compo
 
 const PROVIDERS = [
   { id: 'gemini', label: 'Gemini', envKey: 'VITE_GEMINI_API_KEY', run: testGemini,
-    key: () => AI.gemini.key, model: () => AI.gemini.model, does: 'Chat (primary) · OCR vision fallback' },
-  { id: 'grok', label: 'Grok (xAI)', envKey: 'VITE_GROK_API_KEY', run: testGrok,
-    key: () => AI.grok.key, model: () => AI.grok.model, does: 'Chat fallback · Primary OCR vision' },
+    key: () => AI.gemini.key, model: () => AI.gemini.model, vision: () => AI.gemini.vision,
+    does: 'Chat first · OCR fallback' },
+  { id: 'grok', label: AI.grok.label, envKey: 'VITE_GROK_API_KEY', run: testGrok,
+    key: () => AI.grok.key, model: () => AI.grok.model, vision: () => AI.grok.vision,
+    does: 'Chat fallback · OCR first' },
 ]
 
 export default function Diagnostics() {
@@ -52,6 +54,29 @@ export default function Diagnostics() {
           {busy ? 'Checking…' : 'Test the connections'}
         </Btn>
 
+        {AI.grok.key && (
+          <Notice tone={AI.grok.service ? 'brand' : 'due'} title={`Key read as ${AI.grok.label}`}>
+            The prefix <code>{AI.grok.key.slice(0, 4)}</code> says this is a{' '}
+            {AI.grok.service === 'groq' ? 'Groq key, so calls go to ' : 'an xAI key, so calls go to '}
+            <code>{AI.grok.base}</code>. xAI keys begin <code>xai-</code> and Groq keys begin{' '}
+            <code>gsk_</code>; each service refuses the other's key with what looks like a
+            "bad key" error.
+            {AI.grok.ignoredModel && (
+              <> The chat model <code>{AI.grok.ignoredModel}</code> in .env belongs to the other
+              service and is ignored.</>
+            )}
+            {AI.grok.ignoredVision && (
+              <> The vision model <code>{AI.grok.ignoredVision}</code> in .env belongs to the other
+              service and is ignored.</>
+            )}
+            <div className="mt-2 text-[12px]">
+              Model names are not hardcoded: the app asks this key what it can use and picks from
+              that, so a retired name costs one wasted request and never a broken screen. Run the
+              test above to see what it settled on.
+            </div>
+          </Notice>
+        )}
+
         {PROVIDERS.map(p => {
           const k = keyShape(p.key())
           const r = results[p.id]
@@ -76,8 +101,16 @@ export default function Diagnostics() {
                   </span>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <span className="text-ink-2">Model asked for</span>
-                  <span className="font-semibold num">{p.model()}</span>
+                  <span className="text-ink-2">Chat model</span>
+                  <span className="font-semibold num text-right">
+                    {r?.willUseChat || <span className="text-ink-3">asked at the first call</span>}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-ink-2">Vision model</span>
+                  <span className="font-semibold num text-right">
+                    {r?.willUseVision || <span className="text-ink-3">asked at the first call</span>}
+                  </span>
                 </div>
                 {k.hasSpace && (
                   <div className="text-late font-semibold">
@@ -93,14 +126,15 @@ export default function Diagnostics() {
                   </div>
                   {r.hasConfigured === false && (
                     <p className="text-[12.5px] text-due font-semibold mb-2">
-                      The key works, but <code>{p.model()}</code> is not in the list. Pick one below
-                      and set it in .env.
+                      The key works, but nothing in this list looks like a chat model. Pick one below
+                      and pin it in .env.
                     </p>
                   )}
-                  {p.id === 'grok' && r.hasVision === false && (
+                  {r.hasVision === false && (
                     <p className="text-[12.5px] text-due font-semibold mb-2">
-                      <code>{AI.grok.vision}</code> is not available — OCR will fail. Choose a
-                      vision model below for <code>VITE_GROK_VISION_MODEL</code>.
+                      Nothing in this list reads images, so OCR will fall through to the other
+                      reader. Pin one below with{' '}
+                      <code>{p.id === 'grok' ? 'VITE_GROK_VISION_MODEL' : 'VITE_GEMINI_VISION_MODEL'}</code>.
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1.5">
@@ -137,8 +171,8 @@ export default function Diagnostics() {
             {[
               ['Restart the dev server', 'Vite reads .env only at startup. A key added while it was running is not in the page. This is the usual cause.'],
               ['Check where the file is', '.env must sit next to package.json, not in src/. Not .env.txt.'],
-              ['Check the line', 'VITE_GROK_API_KEY=xai-… — no quotes, no spaces around the =, nothing after it.'],
-              ['Check the key itself', 'An API key from console.x.ai, not a team or management key, and not revoked.'],
+              ['Check the line', 'VITE_GROK_API_KEY=… — no quotes, no spaces around the =, nothing after it.'],
+              ['Check which service it is', `An xAI key begins xai- (console.x.ai); a Groq key begins gsk_ (console.groq.com). Different companies — each refuses the other's key. This build read yours as ${AI.grok.service || 'none'} and calls ${AI.grok.base}.`],
             ].map(([t, d], i) => (
               <Row key={t} icon={<span className="text-brand font-bold text-[13px] num">{i + 1}</span>}
                 title={t} sub={d} />

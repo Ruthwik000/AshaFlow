@@ -120,40 +120,78 @@ problem statement explicitly warns against adding a monitoring burden.
   reason, My health, My records with per-programme consent toggles
 
 ### Not built yet
-- FastAPI backend, PostgreSQL + pgvector, the four LangChain agents
-- Voice **input** (speaker output is in; `speechSynthesis`, no dependency)
-- Register photo OCR
+- A server to hold the model keys (`VITE_AI_PROXY` is the hook for it)
 - Only the **Pregnancy** encounter type is wired. The other five need their own
   question sets and schema mappings — same one-file-per-programme pattern.
+- Any measured field trial. Time savings are modelled, not observed.
 
 ---
 
-## 6. Planned backend (not written)
+## 6. Architecture: there is no backend, and there are no agents
+
+This was once planned as FastAPI + PostgreSQL + pgvector with four LangChain
+agents. **That plan is dropped.** What exists, and what the pitch should claim,
+is this:
 
 ```
-FastAPI + SQLModel + PostgreSQL 16 with pgvector (one DB, no separate Chroma)
+  the phone                                        the network
+  ─────────────────────────────────────────        ───────────────
+  solver · derivations · mapper · incentives
+  caseload matrix · offline answer engine
+  prefill · form filling · Dexie + outbox     ──▶  Gemini      (chat, OCR fallback)
+  voice loop (SpeechRecognition/Synthesis)    ──▶  xAI / Groq  (OCR, chat fallback)
 ```
 
-Endpoints: `POST /sync/batch` (idempotent on client UUID), `GET /programmes`
-(ETag, cached in IndexedDB), `/officer/summary`, `/officer/alerts`,
-`/exports/{code}.csv`, `/agents/*`, `/woman/{token}`, `/woman/consent`.
+Everything that decides anything runs in the browser. Two HTTPS calls leave it,
+both made straight from the page: **chat**, and **reading a photographed form**.
+There is no orchestration layer, no queue of autonomous steps, no server.
 
-### The four agents
+**Why this is the right shape, not a shortcut.** An ASHA works where there is no
+signal. A design whose answers need a server is a design that stops working in
+the field. So the solver, the record, the arithmetic and the written answer
+engine all run locally and need nothing; the model is an enhancement on top of
+something already complete without it. Turn the network off and the app still
+captures a visit, produces five records, counts her caseload and answers her
+questions from her own data.
 
-| Agent | Kind | Reads | Writes | Guardrail |
+**Where the models are used, exactly:**
+
+| Where | Call | If it fails |
+|---|---|---|
+| ASHA assistant (`askAsha`) | Gemini → xAI/Groq, with her caseload as context | the offline answer engine, which was going to answer anyway |
+| Beneficiary chat (`askModel`) | only for a question the written engine does not recognise | the written engine's own "ask your ASHA" answer |
+| Scan a form (`extractFormFromImage`) | xAI/Groq vision → Gemini vision | a worked sample, so the flow stays demonstrable |
+
+**The one rule that survived from the agent design:** a model proposes, a person
+approves. Nothing a model returns is written to a record of truth on its own —
+a scanned form becomes a *draft* form the worker names and saves, a mapping is
+shown with its confidence for her to accept, and an answer in the chat changes
+nothing at all.
+
+**`VITE_AI_PROXY`** is the hook for the day the keys should not sit in the
+browser: set it, and the same two calls go to a small server instead of to the
+providers. Nothing else in the app changes.
+
+### The two services called "Grok"
+
+`VITE_GROK_API_KEY` accepts a key from either, and `ai/config.js` reads the
+prefix to decide where to send it:
+
+| | prefix | base | chat | vision |
 |---|---|---|---|---|
-| **Schema Reader** | LLM + RAG | pgvector `canonical_fields`, `programme_docs` | `programme_drafts` | Must cite a PDF page; <0.6 confidence flagged; never writes `programmes` |
-| **Gap Chaser** | SQL first, LLM last | encounters, members, schedules | `visit_plans` | LLM only orders and phrases; cannot add/remove a clinical task |
-| **Claim Auditor** | SQL first, RAG for edge cases | encounters, claims, `incentive_rules` | `claim_items` status=proposed | Every rupee traced to an encounter id + rule clause; ASHA confirms |
-| **Benefit Helper** | LLM + RAG | her own row, `scheme_docs` | `agent_runs` only | Scheme questions only; any health question → "ask your ASHA" |
+| xAI | `xai-` | `api.x.ai/v1` | `grok-2-latest` | `grok-2-vision-1212` |
+| Groq | `gsk_` | `api.groq.com/openai/v1` | `llama-3.3-70b-versatile` | `meta-llama/llama-4-scout-17b-16e-instruct` |
 
-**Why a vector DB is genuinely needed:** `person.name` appears across forms as
-"Name of beneficiary", "Mother's name", "लाभार्थी का नाम". Matching hundreds of
-such labels is a synonym problem, and stuffing the whole canonical dictionary
-into every prompt degrades as it grows. Embed it once, retrieve top-5 per label,
-let the model pick and a human approve.
+Both are OpenAI-compatible, so one code path serves both, and
+`VITE_GROK_PROVIDER` overrides detection.
 
----
+**Model names are discovered at runtime** (`providers.js`: `liveModels`,
+`resolveModel`, `withModel`). Each provider is asked what this key can use, and
+the choice is made from that list by a preference order; a name that answers 404
+is struck off and the next is tried. A hardcoded name is a time bomb — it is
+what broke `gemini-2.0-flash` and the `llama-3.x` names within days of being
+written. The `VITE_*_MODEL` variables now only pin a choice, and are ignored
+when the key cannot see that model.
 
 ## 7. Design system — "tactile minimal"
 
@@ -278,6 +316,216 @@ capture-to-five-outputs flow must work with venue wifi off — that is the claim
 
 > One or two lines per change. **Newest first.** Date · what changed · why.
 > Add an entry every time anything in this repo changes.
+
+### 2026-09-19 — the demo account filled nothing, and nothing was ever spoken aloud
+- **"Use demo account" did nothing** because `ASHA` in `seed.js` has no `email`, so `r.email` was
+  `undefined` and `setEmail(undefined)` turned a controlled input into an uncontrolled one — the
+  React warning in the console was the same bug, not a separate one. `ASHA.email` added;
+  `Login.jsx` now derives `demoEmail` with a fallback, matches the sign-in against it, and both
+  inputs take `value={x ?? ''}` so a missing field can never blank the form again. Checked for all
+  three roles.
+- **Speech was silent.** Two separate causes:
+  - `say()` in `useStore` — the Read-aloud path — was calling `speechSynthesis.cancel()` and
+    `speak()` in the same tick, with no voice chosen and no waiting for the engine to load its
+    voices. Chrome answers all three of those with silence. It now delegates to `speakOnce`.
+  - `speak()` in `voice.js` had the same cancel-then-speak race. It now waits for `voiceschanged`,
+    pauses after cancelling, picks a voice by degrading the locale (hi-IN → hi → en-IN → en →
+    default → any), speaks in sentence-sized pieces under 180 characters so nothing is cut off at
+    Chrome's fifteen-second limit, and calls `resume()` every four seconds because Chrome pauses
+    its own engine.
+  - **A watchdog**, because the worst outcome is not silence but a panel stuck on "Speaking…" with
+    the loop never handing the turn back. If nothing has begun within two seconds the turn is
+    returned and she is told the answer is on the screen.
+- **Caught while testing:** my own fix could kill speech outright — assigning a voice the engine
+  will not accept throws, and the throw was outside the try that wrapped `speak()`. A bad voice now
+  degrades to the default. This is exactly the failure the change existed to prevent.
+- Voice errors now read as sentences: a bare code like `not-allowed` is explained, anything already
+  written as a sentence is shown as-is rather than prefixed "Voice stopped:".
+- **The working copy had drifted from the machine** — 28 files differed, including a rewritten
+  `Login.jsx`, `Icon.jsx` and several engine files from another session. Resynced from the device
+  before touching anything, so nothing was clobbered.
+- Verified: demo fill for ASHA, officer and beneficiary with no React warning and a successful
+  sign-in; Read aloud and a live spoken turn each queueing two utterances split at a sentence
+  boundary; and an engine that silently swallows speech leaving the panel closed with a plain
+  explanation instead of a stuck "Speaking…". Smoke: **PASS, 40 routes × 2 configs.**
+
+### 2026-09-19 — Gemini 2.5 Flash, patience for a busy provider, and errors that explain themselves
+- **Gemini is pinned to `gemini-2.5-flash`** as the first preference, as asked, with
+  `gemini-flash-latest` behind it and the rest of the ladder unchanged.
+- **503 is not a failure, it is a queue.** An overloaded model was falling straight through to the
+  next provider and then to the offline engine. `patiently()` now retries a busy provider (503, 502,
+  504, 429, "overloaded") up to three times with a growing pause, and `withModel()` no longer strikes
+  a model off as dead when the provider was merely busy.
+- **400 is the request, not the key and not the model.** Providers disagree about `max_tokens` vs
+  `max_completion_tokens`, about `response_format`, even about `temperature` on some models. Rather
+  than guess which field a given model dislikes, `postChat()` sends the request again with nothing
+  but the model and the messages — the answer is still correct, and the provider's own complaint is
+  logged. Chat now sends `max_completion_tokens`, the current field name.
+- **The failure is now legible.** "gemini, grok unavailable" told nobody what to change. Each
+  provider's own words are logged to the console and shown in the chat behind a tap, with a line
+  saying the answer came from the phone instead so nothing was lost. The badge names the service
+  that actually answered — "Groq", not "GROK", when the key is a Groq key.
+- Verified against a stubbed provider: two 503s were waited out and answered on the third attempt
+  **without touching the fallback**; a 400 on `max_completion_tokens` was recovered by resending
+  `{model, messages}` alone; and with both providers genuinely down the detail panel showed
+  *"GEMINI — 400 API key not valid"* and *"Groq — 429 Organization has been rate limited"* over an
+  answer from the offline engine. Smoke: **PASS, 40 routes × 2 configs.**
+
+### 2026-09-19 — 404 is not a bad key: model names are now discovered, not hardcoded
+- Both providers answered **404** — `gemini-2.0-flash` and the `llama-3.x` names no longer exist for
+  those keys. 404 means the key was accepted and the *name* was not found; 401 or 403 would have
+  meant a bad key. Nothing needed replacing.
+- **The names are no longer written into the app.** `providers.js` gained `liveModels()` (ask the
+  provider what this key can use, once per session), `resolveModel()` (choose by a preference order,
+  newest and cheapest first, skipping whisper / tts / embedding / guard / image-generation) and
+  `withModel()` (call it, and on a model-not-found strike that name off and try the next). A
+  retirement now costs one wasted request, once — never a broken screen.
+- `VITE_GEMINI_MODEL` and friends are demoted to *pins*: honoured when the key can see that model,
+  ignored otherwise. `.env.example` says to leave them blank.
+- Diagnostics reports the model it settled on rather than the one .env guessed.
+- Verified against a stubbed provider reproducing exactly this failure — a Gemini list without
+  `gemini-2.0-flash` and a Groq list without any `llama-3.x`: the app listed, picked
+  `gemini-flash-latest`, and answered on the first call, **zero wasted requests**; Groq resolved to
+  Llama 4 Scout for both chat and OCR. Smoke: **PASS, 40 routes × 2 configs.**
+
+### 2026-09-19 — the key was for the wrong company, and a father could be pregnant
+- **The OCR key was never bad — it was being sent to the wrong company.** The key in `.env` begins
+  `gsk_`, which is a **Groq** key (console.groq.com). The app was posting it to **xAI** (api.x.ai),
+  whose keys begin `xai-`. Two different companies answer to the name "grok", and each refuses the
+  other's key with `400 Incorrect API key provided` — which reads like a bad key and is really a bad
+  address. `ai/config.js` now reads the prefix and picks the base URL, the model defaults and the
+  console name from it; both services are OpenAI-compatible, so one code path serves both.
+  `VITE_GROK_PROVIDER` overrides the detection.
+- A model name belonging to the other service is **ignored rather than sent** (the `grok-2-*` names
+  in `.env` mean nothing on Groq), and `tryModels()` walks a candidate list so a retired name falls
+  through instead of failing the provider. Groq vision does OCR with Llama 4 Scout.
+- Diagnostics opens with a banner naming the service the key was read as, the base URL it will call,
+  the model names it will try in order, and any name it ignored. `.env.example` and the README carry
+  the same table.
+- **`engine/roles.js` — sex, relation and status can no longer contradict each other.** A father was
+  able to be pregnant. The rules live in one file and both intake screens apply them: an impossible
+  chip is shown greyed with the reason on it ("only a woman", "over 18"), and a choice that
+  invalidates another field repairs it and says what it changed. The field just touched is never
+  overruled — everything moves around it. `Chips` gained an `off` reason per option.
+- Add-a-person gained the relation and status chips it was missing, on the same rules.
+- **Both chats show the send button and the talk button together** instead of one swapping into the
+  other. (`flex-1` without `min-w-0` had pushed the send button off a 390px screen.)
+- **The form fill screen now shows what was filled**, field by field with its value and whether it
+  came from the record or was calculated — a progress bar is a claim, this is the evidence.
+- **The agent framing is gone.** There is no FastAPI backend, no pgvector, no LangChain agents, and
+  §6 of this file now describes what actually exists: everything decides in the browser, and exactly
+  two calls leave it — chat, and reading a photographed form. The one rule that survived is the one
+  that mattered: a model proposes, a person approves.
+- Verified: scan → save as a form → pick Sunita → **8 of 9 fields filled from her record, the 1
+  unmapped field shown as needing an answer**; the role rules driven in the browser (Father greyed
+  out while pregnant, switching to Male repairing Wife→Husband and Pregnant→Adult); both chat
+  buttons inside the viewport at 360px and 390px; the diagnostics banner against a `gsk_` key.
+  Smoke: **PASS, 40 routes × 2 configs.**
+
+### 2026-09-19 — the worker's chat: typed, live by voice, and grounded in her caseload
+- **One answer path for typing and for talking.** `Assistant.jsx` was a fake: a regex over four
+  canned strings, and a mic button that waited 1.8 seconds and pretended. Both are now real and both
+  go through the same `respond()`.
+- **`engine/ashaContext.js`** — her whole working picture read out of Dexie: the caseload matrix,
+  every household and person with their status, scheme enrolments and tasks, overdue / due today /
+  coming up, earnings and what is unclaimed, the sync queue, held-up payments, missing proofs.
+  `findPeople()` resolves a name or a house number in a question to the people it means.
+- **`engine/ashaBrain.js`** — the offline answer engine, 13 intents plus a person lookup, every
+  answer **composed from her actual caseload**. It answers with no signal at all, and when a model is
+  reachable it still supplies the sources and the follow-on actions shown under the reply. It is the
+  floor, not the fallback nobody tested.
+- **`ai/index.js` — `askAsha()`**, a worker-facing prompt. The worker is not the beneficiary: she
+  asks "who is due today", which only her records can answer, and "how long does Aadhaar seeding
+  take", which they cannot. The prompt separates the two instead of refusing the second — a general
+  answer must open with "General guidance:", and the screen then drops the record sources and shows
+  an honest note. `askModel()` and `askAsha()` now share one `runChat()` provider walk.
+- **Live voice** uses the existing `createVoiceAgent` loop: listen → answer → speak → listen again,
+  with the partial transcript in `VoiceBar` and "stop" ending it. A spoken turn passes `brief` so the
+  model answers in under three sentences — she is listening, not reading.
+- **The beneficiary chat** now reaches a model too, but only when the written engine does not
+  recognise the question at all; her reviewed answers still win.
+- **Fixed, found while testing:** `iso()` in `seed.js` built dates with `toISOString()`, which rolls
+  the day backwards east of Greenwich — a task seeded "11 days ago" read as 12 days overdue on an
+  Indian phone. It builds a local calendar date now.
+- Verified in a real browser: eight typed questions answered from the database (who is due, a person
+  by name with schemes and dates, earnings, PMMVY documents, the caseload, the vaccine schedule, a
+  held-up payment, an unknown question); the model path driven against a stubbed provider, confirming
+  the caseload reaches it (63 people lines) and the general-guidance note renders; and a three-turn
+  live conversation with a faked microphone, each answer spoken aloud and the stop word ending it.
+  Smoke: **PASS, 40 routes × 2 configs.**
+
+### 2026-09-19 — total families in the matrix, and a complete intake form
+- **"Total families" was missing from the matrix.** `caseloadMatrix()` now returns a
+  `totals` block — *Total families* (with the village count) and *People in those
+  families* (with the average family size) — rendered as the first two rows of the
+  caseload card, above a **"Who is in them"** group holding the six clinical rows.
+  The collapsed tiles became four: families · people · pregnant · under 5. The
+  by-village chips now carry households **and** people.
+- **Fixed:** the *Newborns* filter chip always read 0. `householdSummary()` returned
+  `newborns` while the filter keyed off `newborn`. Both spellings are returned now.
+- **Add a family rebuilt** (`NewHousehold.jsx`). Four blocks: the house (number, head,
+  village, hamlet, mobile); **family members inline** — a repeatable card per person with
+  name, age, sex, relation to the head, status, LMP or DOB, and **the schemes that person
+  is on**; cards and entitlements (ration card, PM-JAY, bank account in her own name,
+  category); and a collapsible *Other household details* (people count, toilet, water,
+  fuel, house type, a note). Status is guessed from age and the scheme ticks are
+  pre-filled from the status — both can be overridden.
+- **New `src/data/enrolOptions.js`** — the scheme catalogue, each scheme carrying the roles
+  it applies to plus the default phase, and `SUGGESTED` ticks per role. A state adds a
+  programme by editing this list; no screen changes.
+- **Dexie v4** adds an `enrolments` table with `createEnrolment()` / `enrolmentsFor()`.
+  `createHousehold()` stores the new fields canonically, and an unanswered yes/no stays
+  `null` — showing "No" for a question nobody asked is a lie the record should not tell.
+- **Family detail** merges seeded and locally-recorded enrolments, and the People tab ends
+  with a *Household details* list that shows only what was actually answered.
+- Verified end to end in a real browser: new family → two members → five enrolments →
+  the family page shows the schemes, the member cards with status and scheme chips, and
+  the household details. Smoke: **PASS, 40 routes × 2 configs.**
+
+### 2026-09-19 — caseload matrix and member detail
+- **Her caseload is now a population, not four rows.** 19 households, 83 people
+  across 4 villages. The four hand-written households stay (tasks, enrolments
+  and the beneficiary portal point at them by id); the rest come from a
+  **seeded generator** in `seed.js` — deterministic, so the numbers are the same
+  every reload. Pregnancies and the newborn are placed explicitly rather than
+  left to chance, because at this size probability gives you an empty matrix
+  about a third of the time.
+- **`engine/caseload.js`** — `memberStatus()` classifies one person
+  (pregnant with trimester, newborn, infant, under-5, adolescent, NCD-due,
+  elder) and `caseloadMatrix()` counts the population. **Nothing is stored;
+  every number is counted from the household and member rows** — the same
+  arithmetic an ASHA does on paper at month end.
+- **Families screen**: a collapsible caseload card — 6 pregnant, 1 newborn,
+  3 infants at a glance, expanding to the full matrix with a by-village
+  breakdown. Each row is tappable and filters the list. Filter chips carry
+  their own counts, and each household row shows what it contributes
+  (`Pregnant`, `1 under 5`, `2 for NCD`).
+- **Family → People is now the detail view**: each member gets an icon coloured
+  by status, a status line (`Pregnant · 5 months`, `Trimester 2`), what that
+  status means for her work (`Vaccines due on schedule`, `Home visits due`),
+  and the schemes that member is enrolled in.
+- **Profile coverage numbers are computed**, not typed. They previously claimed
+  142 households against a database of 4 — now they read the database and the
+  village list comes from it too.
+
+### 2026-09-19 — Gemini vision as the OCR fallback
+- **OCR chain is now Grok vision → Gemini vision → worked sample**, matching the
+  shape chat already had. `geminiVision()` posts the image as an
+  `inline_data` part with `responseMimeType: application/json`.
+- **Either key alone covers both jobs.** `hasOCR()` is true when *either*
+  provider has a key, so a Gemini-only setup still reads a real photograph.
+- A provider is dropped from the chain for any reason — bad key, missing model,
+  a reply that is not JSON — and the next one is tried. `parseFormJson` is
+  shared, so a model that wraps its answer in a fence or adds a sentence is
+  still read. Verified across seven scenarios with stubbed providers:
+  both up → grok; grok key bad → gemini; grok model gone → gemini; grok returns
+  prose → gemini; either configured alone; both fail → one error naming both.
+- The review screen says **"read by grok"** or **"read by gemini"**, and shows a
+  note when the first reader failed and the second was used.
+- `VITE_GEMINI_VISION_MODEL` added, defaulting to `VITE_GEMINI_MODEL`.
+  Diagnostics now lists a **chat model and a vision model per provider** and
+  warns when the configured vision model is absent from the key's model list —
+  for either provider, not just Grok.
 
 ### 2026-09-18 — key diagnostics
 - **Reported: OCR failed with `400 Incorrect API key provided`.** That is xAI

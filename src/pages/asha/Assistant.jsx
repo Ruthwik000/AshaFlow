@@ -1,20 +1,37 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ASSISTANT_PROMPTS, ASSISTANT_ANSWERS } from '../../data/seed'
 import { useStore, say } from '../../store/useStore'
-import { askModel, hasAnyChat } from '../../ai'
-import { ASHA } from '../../data/seed'
+import { askAsha, hasAnyChat } from '../../ai'
+import { buildAshaContext } from '../../engine/ashaContext'
+import { answerAsha, ashaSuggestions } from '../../engine/ashaBrain'
+import { AI } from '../../ai/config'
+import { createVoiceAgent, voiceSupported } from '../../engine/voice'
 import { useT } from '../../i18n'
 import Icon from '../../components/Icon'
-import { AppBar, Btn, Notice } from '../../components/ui'
+import VoiceBar from '../../components/VoiceBar'
+import { AppBar, Notice } from '../../components/ui'
 
-const pick = q => {
-  for (const [k, v] of Object.entries(ASSISTANT_ANSWERS)) {
-    if (k === 'default') continue
-    if (v.match?.test(q)) return v
-  }
-  return ASSISTANT_ANSWERS.default
+/** **bold** without pulling in a markdown parser. */
+function rich(text) {
+  return String(text).split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**')
+      ? <b key={i} className="font-bold">{part.slice(2, -2)}</b>
+      : <span key={i}>{part}</span>
+  )
 }
+
+
+/* The browser reports a bare code like "not-allowed"; the speech engine sends
+   a whole sentence. Only a code needs explaining. */
+function voiceMessage(e, allowHint) {
+  const code = String(e)
+  if (code === 'not-allowed' || code === 'service-not-allowed')
+    return `Microphone permission was refused. ${allowHint}`
+  if (code === 'network') return 'Speech recognition needs a connection. You can still type.'
+  if (code === 'audio-capture') return 'No microphone was found on this device. You can still type.'
+  return /^[a-z-]+$/.test(code) ? `Voice stopped: ${code}` : code
+}
+
 const clock = () => new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
 
 function Mark({ size = 30 }) {
@@ -26,46 +43,108 @@ function Mark({ size = 30 }) {
   )
 }
 
-/* The worker's assistant is grounded in the programme rules rather than one
-   person's record, so it gets a small fixed context of its own. */
-const ASHA_CTX = {
-  mode: 'pregnant', name: ASHA.name, age: '—', village: ASHA.village, house: '—',
-  asha: ASHA.name, ashaPhone: '98765 21140', anm: 'Kavita Singh',
-  phc: 'Rampur Primary Health Centre', rchId: '—',
-  anc: [], vaccines: [], schemes: [], timeline: [],
-  nextVisit: { label: '—', date: '—', at: '—' }, paid: 0, owed: 0,
-  danger: [{ label: 'Bleeding' }, { label: 'Fits' }, { label: 'Baby not moving' }],
-}
-
 export default function Assistant() {
   const nav = useNavigate()
   const t = useT()
+  const lang = useStore(s => s.lang)
   const offline = useStore(s => s.demoOffline || !s.online)
+
+  const [ctx, setCtx] = useState(null)
   const [msgs, setMsgs] = useState([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const [listening, setListening] = useState(false)
+  const [voiceState, setVoiceState] = useState('idle')
+  const [partial, setPartial] = useState('')
+  const [voiceErr, setVoiceErr] = useState(null)
+  const [why, setWhy] = useState(null)   // which message's failure detail is open
+
   const end = useRef(null)
+  const agent = useRef(null)
+  const ctxRef = useRef(null)
 
+  useEffect(() => { buildAshaContext().then(setCtx) }, [])
+  useEffect(() => { ctxRef.current = ctx }, [ctx])
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [msgs, busy])
+  useEffect(() => () => agent.current?.stop(), [])
 
+  const prompts = useMemo(() => ashaSuggestions(ctx), [ctx])
   const push = m => setMsgs(x => [...x, { at: clock(), ...m }])
 
-  const send = async text => {
-    const q = (text ?? input).trim()
-    if (!q || busy) return
-    setInput(''); push({ role: 'u', text: q }); setBusy(true)
+  /* ------------------------------------------------------------------------
+     One answer path, used by typing and by talking alike.
 
-    const local = pick(q)
+     The offline engine answers first and always — it reads her caseload out of
+     the local database, so it works with no signal. If a model is reachable it
+     answers instead, with the same caseload as its context and the engine's
+     sources and follow-on actions kept alongside. The engine is the floor,
+     never the fallback nobody tested.
+     --------------------------------------------------------------------- */
+  const respond = async (q, { spoken = false } = {}) => {
+    const c = ctxRef.current
+    const local = answerAsha(q, c) || { text: 'Give me a moment — I am still reading your records.' }
     let out = { ...local, via: 'local' }
-    if (hasAnyChat()) {
+
+    if (hasAnyChat() && !offline) {
       try {
-        const r = await askModel(q, ASHA_CTX, t.lang)
-        if (r && !r.failed && r.text) out = { ...local, text: r.text, via: r.via }
-        else if (r?.failed) out = { ...out, tried: r.tried }
+        const r = await askAsha(q, c, lang, { brief: spoken })
+        if (r && !r.failed && r.text) {
+          const general = /^general guidance/i.test(r.text)
+          out = {
+            ...local,
+            text: r.text,
+            via: r.via,
+            tried: r.tried,
+            general,
+            // a general answer is not evidence from her records, and the
+            // engine's fallback action would send her somewhere unrelated
+            sources: general ? [] : local.sources,
+            actions: general && local.id === 'fallback' ? [] : local.actions,
+          }
+        } else if (r?.failed) {
+          out = { ...out, tried: r.tried }
+        }
       } catch { /* the offline answer stands */ }
     }
-    setTimeout(() => { push({ role: 'a', ...out }); setBusy(false) }, 300)
+    return out
+  }
+
+  const send = async (text, { spoken = false } = {}) => {
+    const q = (text ?? input).trim()
+    if (!q || busy) return
+    setInput(''); setPartial('')
+    push({ role: 'u', text: q, spoken })
+    setBusy(true)
+    const out = await respond(q, { spoken })
+    push({ role: 'a', ...out })
+    setBusy(false)
+    if (spoken) agent.current?.speak(out.text)      // …then it listens again on its own
+  }
+
+  /* --- the live loop: listen → answer → speak → listen again ------------ */
+  const startVoice = () => {
+    setVoiceErr(null)
+    if (!voiceSupported()) {
+      setVoiceErr('This browser cannot listen. Chrome on Android works, and you can always type.')
+      return
+    }
+    const a = createVoiceAgent({
+      lang,
+      onState: setVoiceState,
+      onPartial: setPartial,
+      onError: e => setVoiceErr(voiceMessage(e, 'Allow it to talk to the assistant.')),
+      onFinal: (said, { stop }) => {
+        setPartial('')
+        if (stop) { push({ role: 'u', text: said, spoken: true }); return }
+        send(said, { spoken: true })
+      },
+    })
+    agent.current = a
+    a.start()
+  }
+
+  const stopVoice = () => {
+    agent.current?.stop(); agent.current = null
+    setPartial(''); setVoiceState('idle')
   }
 
   const attach = () => {
@@ -73,25 +152,21 @@ export default function Assistant() {
     setBusy(true)
     setTimeout(() => {
       push({
-        role: 'a',
-        text: 'I read the form — 14 pages, 22 fields. It is the HBNC day-7 newborn visit format.\n\n18 of the 22 fields already map onto the record we hold, so a worker would be asked about 6 new things. The remaining 4 need a person to decide the mapping.',
+        role: 'a', via: 'local',
+        text: 'I read the form — 14 pages, 22 fields. It is the HBNC day-7 newborn visit format.\n\n18 of the 22 fields already map onto the record you hold, so you would be asked about 6 new things. The remaining 4 need a person to decide the mapping.',
         sources: ['HBNC-day7-format.pdf, pages 2–9'],
         actions: [{ label: 'Build a form from this PDF', to: '/asha/new-schema', icon: 'doc' }],
       })
       setBusy(false)
-    }, 1500)
-  }
-
-  const mic = () => {
-    if (listening) return setListening(false)
-    setListening(true)
-    setTimeout(() => { setListening(false); send('Why has Sunita’s payment not come?') }, 1800)
+    }, 1400)
   }
 
   const CAN = [
-    { icon: 'doc', l: t('assist.canDo1') }, { icon: 'scan', l: t('assist.canDo2') },
-    { icon: 'plus', l: t('assist.canDo3') }, { icon: 'assist', l: t('assist.canDo4') },
+    { icon: 'families', l: t('assist.canDo1') }, { icon: 'rupee', l: t('assist.canDo2') },
+    { icon: 'doc', l: t('assist.canDo3') }, { icon: 'assist', l: t('assist.canDo4') },
   ]
+
+  const live = voiceState !== 'idle'
 
   return (
     <>
@@ -101,7 +176,7 @@ export default function Assistant() {
         {offline && (
           <div className="mb-4">
             <Notice tone="due" title={t('common.offline')}>
-              The assistant needs a connection. Everything else keeps working offline.
+              {t('assist.offlineBody')}
             </Notice>
           </div>
         )}
@@ -111,8 +186,12 @@ export default function Assistant() {
             <div className="text-center">
               <div className="mx-auto w-fit mb-4"><Mark size={52} /></div>
               <h2 className="text-[21px] font-bold tracking-[-0.015em]">{t('assist.empty')}</h2>
-              <p className="text-[14px] text-ink-2 leading-relaxed mt-2 max-w-[32ch] mx-auto">
-                {t('assist.emptyBody')}
+              <p className="text-[14px] text-ink-2 leading-relaxed mt-2 max-w-[33ch] mx-auto">
+                {ctx
+                  ? t('assist.emptyBody')
+                      .replace('{families}', ctx.matrix.households)
+                      .replace('{people}', ctx.matrix.people)
+                  : t('assist.emptyBody').replace('{families}', '…').replace('{people}', '…')}
               </p>
             </div>
 
@@ -128,7 +207,7 @@ export default function Assistant() {
             <div className="mt-7">
               <div className="text-[13px] font-semibold text-ink-2 mb-2.5 px-0.5">{t('assist.try')}</div>
               <div className="space-y-2">
-                {(ASSISTANT_PROMPTS[t.lang] ?? ASSISTANT_PROMPTS.en ?? []).map(p => (
+                {prompts.map(p => (
                   <button key={p} onClick={() => send(p)}
                     className="press raise w-full text-left rounded-2xl pl-4 pr-3 py-3.5 flex items-center gap-3">
                     <span className="text-[14px] text-ink flex-1 leading-snug">{p}</span>
@@ -159,17 +238,31 @@ export default function Assistant() {
                   <p className="text-[14.5px] text-white leading-relaxed whitespace-pre-line">{m.text}</p>
                 )}
               </div>
-              <span className="text-[10.5px] text-ink-3 mt-1.5 mr-1 num">{m.at}</span>
+              <span className="text-[10.5px] text-ink-3 mt-1.5 mr-1 num flex items-center gap-1">
+                {m.spoken && <Icon name="assist" size={11} />}{m.at}
+              </span>
             </div>
           ) : (
             <div key={i} className="anim-up">
               <div className="flex gap-2.5">
                 <Mark />
                 <div className="min-w-0 flex-1">
-                  <div className="raise rounded-2xl rounded-tl-md px-4 py-3.5">
-                    <p className="text-[14.5px] text-ink leading-[1.62] whitespace-pre-line">
-                      {m.text.replace(/\*\*/g, '')}
-                    </p>
+                  <div className={`rounded-2xl rounded-tl-md px-4 py-3.5
+                    ${m.tone === 'danger' ? 'bg-late-soft border border-late/30' : 'raise'}`}>
+                    <p className="text-[14.5px] text-ink leading-[1.62] whitespace-pre-line">{rich(m.text)}</p>
+
+                    {m.general && (
+                      <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-info-soft px-2.5 py-1.5">
+                        <span className="text-info shrink-0 mt-0.5"><Icon name="info" size={12} /></span>
+                        <span className="text-[11px] text-info leading-snug">{t('assist.generalNote')}</span>
+                      </div>
+                    )}
+                    {m.verify && (
+                      <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-due-soft px-2.5 py-1.5">
+                        <span className="text-due shrink-0 mt-0.5"><Icon name="info" size={12} /></span>
+                        <span className="text-[11px] text-due leading-snug">{t('assist.verifyNote')}</span>
+                      </div>
+                    )}
 
                     {m.sources?.length > 0 && (
                       <div className="mt-3.5 pt-3.5 border-t border-line-2">
@@ -194,19 +287,40 @@ export default function Assistant() {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-1.5 pl-1">
+                  <div className="flex items-center gap-3 mt-1.5 pl-1 flex-wrap">
                     <span className="text-[10.5px] text-ink-3 num">{m.at}</span>
                     {m.via && (
                       <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded
                         ${m.via === 'local' ? 'bg-line-2 text-ink-3' : 'bg-brand-soft text-brand'}`}>
-                        {m.via === 'local' ? 'offline' : m.via}
+                        {m.via === 'local' ? t('assist.onDevice') : m.via === 'grok' ? AI.grok.label : m.via}
                       </span>
+                    )}
+                    {m.tried?.length > 0 && m.via === 'local' && (
+                      <button onClick={() => setWhy(why === i ? null : i)}
+                        className="press flex items-center gap-1 text-[10px] font-semibold text-due">
+                        <Icon name="info" size={11} />
+                        {m.tried.map(x => (x.id === 'grok' ? AI.grok.label : x.id)).join(', ')} unavailable
+                      </button>
                     )}
                     <button onClick={() => say(m.text.replace(/\*\*/g, ''))}
                       className="press flex items-center gap-1 text-[11px] font-semibold text-ink-3">
                       <Icon name="assist" size={12} /> {t('common.readAloud')}
                     </button>
                   </div>
+
+                  {why === i && m.tried?.length > 0 && (
+                    <div className="mt-2 rounded-xl bg-due-soft border border-due/25 px-3 py-2.5 anim-up">
+                      <div className="text-[11px] font-bold text-due mb-1">What each one said</div>
+                      {m.tried.map(x => (
+                        <div key={x.id} className="text-[11px] text-ink-2 leading-snug mb-1 last:mb-0">
+                          <b className="uppercase">{x.id === 'grok' ? AI.grok.label : x.id}</b> — {x.error}
+                        </div>
+                      ))}
+                      <div className="text-[10.5px] text-ink-3 mt-1.5 leading-snug">
+                        The answer above came from this phone instead, so nothing was lost.
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -228,36 +342,41 @@ export default function Assistant() {
       </main>
 
       <div className="sticky bottom-0 bg-paper/94 backdrop-blur-md border-t border-line px-3 pt-3 pb-2 safe-bot">
-        {listening && (
-          <div className="flex items-center justify-center gap-2.5 pb-3">
-            <span className="flex items-end gap-[3px] h-4">
-              {[0, 1, 2, 3, 4].map(i => (
-                <span key={i} className="w-[3px] rounded-full bg-brand animate-pulse"
-                  style={{ height: [8, 15, 11, 16, 9][i], animationDelay: `${i * 110}ms` }} />
-              ))}
-            </span>
-            <span className="text-[13px] font-semibold text-brand">{t('assist.listening')}</span>
+        <VoiceBar state={voiceState} partial={partial} lang={lang} onStop={stopVoice} />
+
+        {voiceErr && (
+          <div className="pb-3">
+            <div className="rounded-xl bg-due-soft border border-due/25 px-3.5 py-2.5">
+              <span className="text-[12.5px] text-due font-medium">{voiceErr}</span>
+            </div>
           </div>
         )}
-        <div className="flex items-end gap-2">
+
+        <div className="flex items-end gap-1.5">
           <button onClick={attach} aria-label="Attach a PDF"
-            className="press raise w-[50px] h-[50px] shrink-0 rounded-2xl grid place-items-center text-ink-2">
+            className="press raise w-[48px] h-[48px] shrink-0 rounded-2xl grid place-items-center text-ink-2">
             <Icon name="doc" size={20} />
           </button>
           <input value={input} onChange={e => setInput(e.target.value)} id="askinput"
             onKeyDown={e => e.key === 'Enter' && send()}
             placeholder={t('assist.placeholder')}
-            className="sink flex-1 min-h-[50px] rounded-2xl px-4 text-[15px] placeholder:text-ink-3/60" />
-          <button onClick={input.trim() ? () => send() : mic}
-            aria-label={input.trim() ? 'Send' : 'Speak'}
-            className={`press w-[50px] h-[50px] shrink-0 rounded-2xl grid place-items-center text-white
-              ${listening ? 'btn-danger' : 'btn-solid'}`}>
-            <Icon name={input.trim() ? 'chevron' : 'assist'} size={20} stroke={2.1}
-              className={input.trim() ? '-rotate-90' : ''} />
+            className="sink flex-1 min-w-0 min-h-[50px] rounded-2xl px-4 text-[15px] placeholder:text-ink-3/60" />
+
+          {/* Both, always. Typing and talking are two ways in, not a toggle. */}
+          <button onClick={live ? stopVoice : startVoice}
+            aria-label={live ? 'Stop talking' : 'Start talking'}
+            className={`press w-[48px] h-[48px] shrink-0 rounded-2xl grid place-items-center
+              ${live ? 'btn-danger text-white' : 'raise text-brand'}`}>
+            <Icon name="assist" size={20} stroke={2.1} />
+          </button>
+          <button onClick={() => send()} aria-label="Send" disabled={!input.trim()}
+            className={`w-[48px] h-[48px] shrink-0 rounded-2xl grid place-items-center
+              ${input.trim() ? 'press btn-solid text-white' : 'bg-line-2 text-ink-3/50 cursor-not-allowed'}`}>
+            <Icon name="chevron" size={20} stroke={2.1} className="-rotate-90" />
           </button>
         </div>
         <p className="text-[10.5px] text-ink-3 text-center mt-2.5 leading-snug px-2">
-          {t('assist.guard')}
+          {live ? t('assist.liveHint') : t('assist.guard')}
         </p>
       </div>
     </>

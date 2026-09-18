@@ -75,6 +75,11 @@ export async function askModel(question, ctx, lang = 'en') {
     '', `HER QUESTION: ${question}`,
   ].join('\n')
 
+  return runChat({ system: GUARD, user })
+}
+
+/** Gemini, then Grok, then tell the caller both refused. */
+async function runChat({ system, user }) {
   const chain = [
     hasGemini() && { id: 'gemini', fn: geminiChat },
     hasGrok() && { id: 'grok', fn: grokChat },
@@ -83,13 +88,114 @@ export async function askModel(question, ctx, lang = 'en') {
   const tried = []
   for (const p of chain) {
     try {
-      const text = await p.fn({ system: GUARD, user })
-      return { text: text.trim(), via: p.id, tried }
+      const text = await p.fn({ system, user })
+      if (text && text.trim()) return { text: text.trim(), via: p.id, tried }
+      tried.push({ id: p.id, error: 'empty reply' })
     } catch (e) {
-      tried.push({ id: p.id, error: String(e.message || e).slice(0, 120) })
+      const msg = String(e.message || e)
+      // the provider's own words, in the console and on the message, because
+      // "unavailable" tells nobody what to change
+      console.warn(`[ASHAFlow] ${p.id} could not answer: ${msg}`)
+      tried.push({ id: p.id, error: msg.slice(0, 300) })
     }
   }
   return { failed: true, tried }
+}
+
+/* ================================================================ worker */
+
+/* The worker is not the beneficiary. She is trained, she carries the register,
+   and she asks two quite different kinds of question: "who is due today",
+   which only her records can answer, and "how long does Aadhaar seeding take",
+   which they cannot. The prompt keeps those two apart instead of refusing the
+   second one. */
+const ASHA_GUARD = `
+You are the assistant inside ASHAFlow, an app used by an ASHA — an accredited
+social health activist — in rural India. You are talking to the worker herself,
+not to a patient. She is trained and she is in the field, often with one hand.
+
+How to answer:
+- Questions about HER OWN WORK — her families, a named person, who is due, her
+  earnings, a stuck payment, what she has recorded — must be answered ONLY from
+  the CASELOAD below. Never invent a name, a number, a date or an amount. If it
+  is not there, say it is not in her records and say what would put it there.
+- General questions — how a scheme works, a schedule, a definition, a procedure,
+  what a form is for, or anything else she asks — answer them properly from what
+  you know. Be useful. Begin such an answer with "General guidance:" and, where
+  a rule varies by state or revision, say so and name where to verify it.
+- Never diagnose a patient, never prescribe, never give a medicine or a dose.
+  Clinical judgement is the ANM's and the doctor's.
+- If a question describes a danger sign in a woman or a baby, say to refer now
+  and call 102, and stop there.
+
+How to write:
+- Plain, direct, short. Six sentences at most unless she asked for a list.
+- No markdown headings and no asterisks. A list uses "• " and nothing else.
+- Numbers exactly as the caseload gives them.
+- Reply in the language named as REPLY LANGUAGE. If you are not accurate in it
+  for health wording, reply in English instead.
+`.trim()
+
+const BRIEF = `
+She is listening to this answer, not reading it. Keep it under three sentences,
+no lists, no numbers she cannot hold in her head. Say the single most useful
+thing and stop.`.trim()
+
+function ashaFactSheet(ctx) {
+  const L = []
+  const m = ctx.matrix
+  L.push(`WORKER: ${ctx.asha.name} (${ctx.asha.id}), ${ctx.asha.village}, ${ctx.asha.block}, ${ctx.asha.district}. ANM ${ctx.asha.anm}. Centre ${ctx.asha.phc}. Today is ${new Date().toDateString()}.`)
+  L.push(`CASELOAD: ${m.households} families, ${m.people} people, ${m.villages.length} villages (${m.villages.map(v => `${v.name} ${v.households}`).join(', ')}).`)
+  L.push('COUNTS: ' + m.rows.map(r => `${r.label} ${r.n}`).join('; '))
+
+  const t = ctx.tasks
+  L.push(`OVERDUE (${t.late.length}): ` + (t.late.map(x => `${x.who} at ${x.where} — ${x.reason}, ${Math.abs(x.inDays)} days late`).join(' | ') || 'none'))
+  L.push(`DUE TODAY (${t.dueToday.length}): ` + (t.dueToday.map(x => `${x.who} at ${x.where} — ${x.reason}`).join(' | ') || 'none'))
+  L.push(`COMING UP: ` + (t.dueSoon.concat(t.planned).map(x => `${x.who} — ${x.reason}, ${x.when}`).join(' | ') || 'none'))
+
+  L.push(`MONEY: earned this month ₹${ctx.money.thisMonth}; already paid ₹${ctx.money.paid}; unclaimed ₹${ctx.money.pending} over ${ctx.money.pendingCount} entries.`)
+  L.push(`SYNC: ${ctx.sync.queued} visits queued, ${ctx.sync.visits} visits and ${ctx.sync.forms} forms on this phone.`)
+
+  L.push('PEOPLE IN HER LIST:')
+  for (const p of ctx.people.slice(0, 60)) L.push('  - ' + describeLine(p))
+  if (ctx.people.length > 60) L.push(`  …and ${ctx.people.length - 60} more.`)
+
+  if (ctx.blocked.length) {
+    L.push('HELD-UP PAYMENTS:')
+    for (const b of ctx.blocked) L.push(`  - ${b.who}: ${b.label} — ${b.phase}`)
+  }
+  if (ctx.proofTrouble.length) {
+    L.push('DOCUMENTS MISSING OR MISMATCHED:')
+    for (const p of ctx.proofTrouble) L.push(`  - ${p.who}: ${p.label} (${p.state})${p.issue ? ' — ' + p.issue : ''}`)
+  }
+  L.push('SCHEMES SHE WORKS WITH: ' + ctx.schemes.map(s => `${s.short} — ${s.note}`).join(' | '))
+  return L.join('\n')
+}
+
+function describeLine(p) {
+  const bits = [`${p.name}, ${p.age}, ${p.sex}, ${p.house} (${p.head}), ${p.village}: ${p.status}`]
+  if (p.detail) bits.push(p.detail)
+  if (p.schemes?.length) bits.push('schemes ' + p.schemes.map(s => `${s.label || s.scheme} [${s.phase}${s.state === 'blocked' ? ', HELD UP' : ''}]`).join(', '))
+  if (p.tasks?.length) bits.push('due ' + p.tasks.map(t => t.reason).join('; '))
+  return bits.join('; ')
+}
+
+/**
+ * Ask a model as the worker's assistant, grounded in her caseload.
+ * `brief` is set when the answer will be spoken aloud rather than read.
+ */
+export async function askAsha(question, ctx, lang = 'en', { brief = false } = {}) {
+  if (!hasAnyChat()) return null
+  if (!ctx) return null
+
+  const user = [
+    `REPLY LANGUAGE: ${LANG_NAME[lang] || 'English'}`,
+    '', 'CASELOAD (her own records, the only source for anything about her work):',
+    ashaFactSheet(ctx),
+    '', `HER QUESTION: ${question}`,
+  ].join('\n')
+
+  return runChat({ system: brief ? ASHA_GUARD + '\n\n' + BRIEF : ASHA_GUARD, user })
 }
 
 /* ----------------------------------------------------------------- OCR */
@@ -123,60 +229,45 @@ Rules:
 CANONICAL_PATHS
 `.trim()
 
+/** A model may wrap JSON in a fence or add a sentence around it. Dig it out. */
 function parseFormJson(raw) {
-  if (!raw || typeof raw !== 'string') throw new Error('Empty response from vision model')
-  const cleaned = raw.replace(/^```(?:json)?/i, '').replace(/```\s*$/, '').trim()
+  const cleaned = String(raw).replace(/^```(?:json)?/i, '').replace(/```\s*$/, '').trim()
   const start = cleaned.indexOf('{')
   const end = cleaned.lastIndexOf('}')
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('Vision model did not return a valid JSON object')
-  }
+  if (start < 0 || end < start) throw new Error('the reply contained no JSON')
   const parsed = JSON.parse(cleaned.slice(start, end + 1))
-  if (!parsed?.sections?.length) throw new Error('No fields were read from the image')
+  if (!parsed?.sections?.length) throw new Error('no fields were read from the image')
   return parsed
 }
 
+/**
+ * Read a photographed form. Grok vision first, Gemini vision second.
+ * Either can be the only key present — OCR works with whichever is there.
+ */
 export async function extractFormFromImage(dataUrl) {
   if (!hasOCR()) return { simulated: true }
   const prompt = OCR_PROMPT.replace('CANONICAL_PATHS', Object.keys(PATH_LABELS).join(', '))
 
-  let grokErr = null
+  const chain = [
+    hasGrok() && AI.grok.hasVision && { id: AI.grok.label, fn: grokVision },
+    hasGemini() && { id: 'Gemini', fn: geminiVision },
+  ].filter(Boolean)
 
-  // 1. Try Grok Vision first if available
-  if (hasGrok()) {
+  const tried = []
+  for (const p of chain) {
     try {
-      const raw = await grokVision({ prompt, dataUrl })
-      const parsed = parseFormJson(raw)
-      return { ...parsed, simulated: false, provider: 'grok' }
+      const parsed = parseFormJson(await p.fn({ prompt, dataUrl }))
+      return { ...parsed, simulated: false, via: p.id, tried }
     } catch (e) {
-      grokErr = e
-      console.warn('Grok vision OCR failed, falling back to Gemini vision:', e)
+      tried.push({ id: p.id, error: e })
     }
   }
 
-  // 2. Fallback to Gemini Vision if available
-  if (hasGemini()) {
-    try {
-      const raw = await geminiVision({ prompt, dataUrl })
-      const parsed = parseFormJson(raw)
-      return {
-        ...parsed,
-        simulated: false,
-        provider: 'gemini',
-        fallbackFrom: grokErr ? 'grok' : null,
-        grokError: grokErr?.message,
-      }
-    } catch (e) {
-      console.warn('Gemini vision OCR failed:', e)
-      if (grokErr) {
-        throw new Error(`Grok failed (${grokErr.message}); Gemini fallback also failed (${e.message})`)
-      }
-      throw e
-    }
-  }
-
-  if (grokErr) throw grokErr
-  return { simulated: true }
+  // every provider failed — surface the first one's reason, and note the rest
+  const err = new Error(String(tried[0]?.error?.message || tried[0]?.error || 'OCR failed'))
+  err.tried = tried
+  err.provider = tried[0]?.id
+  throw err
 }
 
 export { hasGemini, hasGrok, hasOCR, hasAnyChat }
