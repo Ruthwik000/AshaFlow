@@ -2,12 +2,11 @@ import { useMemo, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import programmes from '../../data/programmes'
-import { planEncounter } from '../../engine/solver'
+import { planCoreEncounter } from '../../engine/solver'
 import { buildOutputs } from '../../engine/mapper'
-import { earnedFor, totalOf } from '../../engine/incentives'
 import { saveEncounter } from '../../db/db'
 import { QUESTION_BANK } from '../../data/canonical'
-import { TopBar, Btn, Card, Section, rupee } from '../../components/ui'
+import { TopBar, Btn, Card, Section } from '../../components/ui'
 import Icon from '../../components/Icon'
 
 export default function Review() {
@@ -18,13 +17,13 @@ export default function Review() {
   const [saving, setSaving] = useState(false)
 
   const facts = draft?.facts || {}
-  const plan = useMemo(() => planEncounter({ programmes, facts, encounterType: draft?.type }), [facts, draft?.type])
+  const isFollowUp = draft?.isFollowUp || false
+  const plan = useMemo(() => planCoreEncounter({ programmes, facts, encounterType: draft?.type, isFollowUp }), [facts, draft?.type, isFollowUp])
   const built = useMemo(() => buildOutputs({ programmes, facts }), [facts])
 
   if (!draft && !saving) return <Navigate to="/asha" replace />
 
   const answers = (draft.answeredOrder || []).filter(o => o.key !== 'visit.consentGiven')
-  const earned = earnedFor(built.full)
 
   const save = async () => {
     setSaving(true)
@@ -72,22 +71,6 @@ export default function Review() {
             </p>
           </Card>
         </Section>
-
-        {earned.length > 0 && (
-          <Section title="You earned">
-            <Card className="p-4">
-              <div className="text-[28px] font-bold text-brand num leading-none">{rupee(totalOf(earned))}</div>
-              <div className="mt-2.5 space-y-1">
-                {earned.map(e => (
-                  <div key={e.code} className="flex justify-between text-[13px]">
-                    <span className="text-ink-2">{e.label}</span>
-                    <span className="font-semibold num">{rupee(e.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </Section>
-        )}
       </main>
 
       <div className="sticky bottom-0 px-4 py-3 bg-paper/95 backdrop-blur border-t border-line safe-bot">

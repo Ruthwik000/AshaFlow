@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import schemeForms from '../../data/schemeForms'
 import Icon from '../../components/Icon'
-import { TopBar, Card, Section, Btn, Toggle, Notice, Pill, fmtDate } from '../../components/ui'
+import OfficerBar from '../../components/OfficerBar'
+import { Card, Section, Btn, Toggle, Notice, Pill, fmtDate } from '../../components/ui'
 
 const WHO = { pregnant: 'Pregnant women', mother: 'Mothers with an infant', any: 'Anyone' }
 
@@ -13,7 +14,7 @@ export default function OfficerForms() {
 
   return (
     <>
-      <TopBar title="Scheme forms" sub="What the field can fill" back onBack={() => nav('/officer')} />
+      <OfficerBar title="National Scheme Forms" sub="Field Deployment &amp; Schema Registry" back onBack={() => nav('/officer')} />
 
       <main className="flex-1 px-4 py-4 space-y-5 pb-8">
         <Notice tone="info" title="Publishing reaches every phone">

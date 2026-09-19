@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { db, getLearned } from '../../db/db'
 import { useStore } from '../../store/useStore'
 import programmes from '../../data/programmes'
-import { planEncounter } from '../../engine/solver'
+import { planCoreEncounter } from '../../engine/solver'
 import { buildCarryForwardFacts } from '../../engine/prefill'
 import { TopBar, Card } from '../../components/ui'
 import Icon from '../../components/Icon'
@@ -46,47 +46,45 @@ export default function VisitType() {
           getLearned(m.id),
         ])
         const { facts } = buildCarryForwardFacts({ household, member: m, encounters, learned })
-        return [m.id, { facts, visits: encounters }]
+        return [m.id, { facts, visits: encounters, learned }]
       }))
       if (live) setRecords(Object.fromEntries(entries))
     })()
     return () => { live = false }
   }, [householdId])
 
-  /* The tile counter is the first-visit number: what a household nobody has
-     met yet would be asked. It is computed, not written in — change a schema
-     file and the tile changes with it. */
+  /* First-visit tile counter: what a household nobody has met would be asked.
+     Now uses the core question set (6-7 questions) not the full plan. */
   const plans = useMemo(() => Object.fromEntries(TYPES.map(t => [
-    t.k, planEncounter({
-      programmes, encounterType: t.k,
+    t.k, planCoreEncounter({
+      programmes, encounterType: t.k, isFollowUp: false,
       facts: { ...(h?.facts || {}), __encounterType: t.k },
     }),
   ])), [h])
 
-  /* What THIS person will be asked, which is the number that matters. On a
-     follow-up almost everything is already on her record, so the plan collapses
-     — that collapse is the entire product, and it was invisible here because
-     the draft used to start from the household facts alone. */
+  /* What THIS person will be asked — with follow-up detection. On a follow-up
+     the registration questions vanish and only the weekly parameters remain. */
   const planFor = (member, t) => {
     const rec = member ? records[member.id] : null
+    const seen = (rec?.visits || []).some(e => e.type === t)
+    const isFollowUp = seen
     return {
-      // __encounterType steers the wording, the derivations and the skip
-      // logic, so it must be in the facts here too or this number and the one
-      // on the capture screen disagree
-      plan: planEncounter({
-        programmes, encounterType: t,
+      plan: planCoreEncounter({
+        programmes, encounterType: t, isFollowUp,
         facts: { ...(rec?.facts || h?.facts || {}), __encounterType: t },
       }),
       visits: rec?.visits?.length || 0,
-      seen: (rec?.visits || []).some(e => e.type === t),
+      seen,
+      isFollowUp,
     }
   }
 
   const start = (t, member) => {
     const rec = member ? records[member.id] : null
+    const seen = (rec?.visits || []).some(e => e.type === t)
     startDraft({
       householdId, memberId: member?.id || null, memberName: member?.name || null,
-      type: t,
+      type: t, isFollowUp: seen,
       facts: { ...(rec?.facts || h?.facts || {}), __encounterType: t },
     })
     nav('/asha/consent')
@@ -113,7 +111,7 @@ export default function VisitType() {
                     <span className="text-[11.5px] text-ink-3 text-center leading-snug">{t.sub}</span>
                     <span className="absolute top-2 right-2 text-[9.5px] font-bold uppercase tracking-wide
                                      bg-brand-soft text-brand-700 px-1.5 py-0.5 rounded num">
-                      {p.stats.baseline} → {p.stats.asked}
+                      {p.stats.asked} Q
                     </span>
                   </button>
                 )
@@ -122,9 +120,9 @@ export default function VisitType() {
 
             <div className="raise rounded-2xl p-4 mt-4">
               <p className="text-[12.5px] text-ink-2 leading-relaxed">
-                Each tile shows <b>fields the registers want</b> → <b>questions you answer</b>, worked out
-                live from the five schema files. The question wording is taken from the form the ASHA
-                already carries for that visit.
+                Each tile shows the <b>core questions</b> for a first visit. Follow-up visits ask
+                fewer — only what changes week to week. The app works out everything else from
+                her earlier answers.
               </p>
               <div className="mt-3 space-y-1">
                 {TYPES.map(t => (
@@ -144,7 +142,7 @@ export default function VisitType() {
             <p className="text-[13px] text-ink-2 mb-3 px-1">Who is this visit for?</p>
             <div className="space-y-2">
               {candidates.map(m => {
-                const { plan, visits, seen } = planFor(m, type)
+                const { plan, visits, seen, isFollowUp } = planFor(m, type)
                 const n = plan.stats.asked
                 return (
                   <Card key={m.id} onClick={() => start(type, m)} className="p-4">
@@ -153,12 +151,20 @@ export default function VisitType() {
                         <div className="font-semibold text-[16px]">{m.name}</div>
                         <div className="text-[12.5px] text-ink-3 capitalize">{m.age} years · {m.role}</div>
                         <div className="text-[12px] mt-1.5">
-                          <span className={`font-semibold ${seen ? 'text-brand' : 'text-ink-2'}`}>
-                            {seen ? 'Follow-up' : visits ? 'Known to you' : 'First visit'}
+                          <span className={`inline-flex items-center gap-1 font-semibold ${
+                            isFollowUp ? 'text-brand' : visits ? 'text-ink-2' : 'text-amber-600'
+                          }`}>
+                            {isFollowUp && <Icon name="check" size={12} stroke={2.5} />}
+                            {isFollowUp ? 'Follow-up' : visits ? 'Known to you' : 'First visit'}
                           </span>
                           <span className="text-ink-3">
                             {' · '}<b className="num text-ink-2">{n}</b> {n === 1 ? 'question' : 'questions'}
-                            {plan.stats.remembered > 0 &&
+                            {isFollowUp && (
+                              <span className="text-brand ml-1">
+                                · only what changed
+                              </span>
+                            )}
+                            {!isFollowUp && plan.stats.remembered > 0 &&
                               ` · ${plan.stats.remembered} already on her record`}
                           </span>
                         </div>

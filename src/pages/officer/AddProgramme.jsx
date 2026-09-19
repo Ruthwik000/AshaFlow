@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from '../../components/Icon'
-import { TopBar, Card, Btn, Notice, Section, Pill } from '../../components/ui'
+import OfficerBar from '../../components/OfficerBar'
+import { Card, Btn, Notice, Section, Pill } from '../../components/ui'
 
 const DRAFT = [
   { label: 'Name of beneficiary',        type: 'text',    req: true,  maps: 'person.name',        page: 4,  conf: 0.97 },
@@ -39,7 +40,7 @@ export default function AddProgramme() {
 
   return (
     <>
-      <TopBar title="Schema Reader" sub="Upload a form, get a programme" back />
+      <OfficerBar title="Schema Reader" sub="Upload a form, get a programme" back />
       <main className="flex-1 px-4 py-4 space-y-5 pb-8">
         {stage === 'upload' && (
           <>

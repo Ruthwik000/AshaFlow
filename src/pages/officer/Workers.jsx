@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { buildBlock, units } from '../../engine/officer'
 import Icon from '../../components/Icon'
-import { TopBar, Card, Section, Bar, Btn, Pill, Notice, List, Row, Stat, fmtDate } from '../../components/ui'
+import OfficerBar from '../../components/OfficerBar'
+import { Card, Section, Bar, Btn, Pill, Notice, List, Row, Stat, fmtDate } from '../../components/ui'
 
 /* One list, one detail. Both sort by area and by load, never by output — an
    officer opens this to find who needs a hand, not to compare women. */
@@ -21,10 +22,10 @@ export function Workers() {
 
   return (
     <>
-      <TopBar title="ASHA workers" sub={`${b.totals.ashas} across ${b.totals.villages} villages`}
+      <OfficerBar title="ASHA Field Workers" sub={`${b.totals.ashas} Staff across ${b.totals.villages} Villages`}
         back onBack={() => nav('/officer')} />
 
-      <div className="px-4 pt-3 pb-3 bg-paper/92 backdrop-blur-md border-b border-line sticky top-0 z-20">
+      <div className="px-4 pt-3 pb-3 bg-paper/92 backdrop-blur-md border-b border-line sticky top-[0] z-10">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
           {villages.map(v => {
             const n = v === 'all' ? b.ashas.length : b.ashas.filter(a => a.village === v).length
@@ -99,7 +100,7 @@ export function AshaDetail() {
 
   return (
     <>
-      <TopBar title={a.name} sub={`${a.subcentre} · ${a.village}`} back onBack={() => nav('/officer/workers')} />
+      <OfficerBar title={a.name} sub={`${a.subcentre} · ${a.village}`} back onBack={() => nav('/officer/workers')} />
       <main className="flex-1 px-4 py-4 space-y-5 pb-8">
 
         {a.fromDevice && (

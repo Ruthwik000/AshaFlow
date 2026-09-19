@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useStore, say } from '../../store/useStore'
 import programmes from '../../data/programmes'
-import { planEncounter, questionFor } from '../../engine/solver'
+import { planCoreEncounter, questionFor } from '../../engine/solver'
 import { QuestionInput } from '../../components/inputs'
 import { TopBar, Btn, Speaker, Bar } from '../../components/ui'
 import Icon from '../../components/Icon'
@@ -20,10 +20,14 @@ export default function AskOnce() {
   const prevAsked = useRef(null)
 
   const facts = draft?.facts || {}
+  const isFollowUp = draft?.isFollowUp || false
 
   const plan = useMemo(
-    () => planEncounter({ programmes, facts, encounterType: draft?.type }),
-    [facts, draft?.type]
+    () => planCoreEncounter({
+      programmes, facts, encounterType: draft?.type,
+      isFollowUp,
+    }),
+    [facts, draft?.type, isFollowUp]
   )
 
   const currentKey = plan.remaining[0]
@@ -88,25 +92,45 @@ export default function AskOnce() {
         right={
           <button onClick={() => setOpenCounter(v => !v)}
             className="h-9 px-3 rounded-full bg-ink text-white text-[12px] font-bold num active:opacity-80">
-            {plan.stats.baseline} → {plan.stats.asked}
+            {isFollowUp ? `${plan.stats.asked} Q` : `${plan.stats.fullAsked} → ${plan.stats.asked}`}
           </button>
         } />
 
       {openCounter && (
         <div className="bg-ink text-white px-4 py-4 anim-up">
           <div className="space-y-1.5 text-[13px]">
-            {[
-              ['5 registers need', plan.stats.baseline, 'entries'],
-              ['Same thing asked twice', -(plan.stats.baseline - plan.stats.unique), ''],
-              ['App works these out', -plan.stats.derived, ''],
-              ['Already known', -plan.stats.remembered, ''],
-              ['Not needed for her', -plan.stats.skipped, ''],
-            ].map(([l, v, u]) => (
-              <div key={l} className="flex justify-between gap-4">
-                <span className="text-white/70">{l}</span>
-                <span className="font-bold num">{v > 0 ? v : v === 0 ? '0' : v} {u}</span>
-              </div>
-            ))}
+            {isFollowUp ? (
+              <>
+                <div className="flex justify-between gap-4">
+                  <span className="text-white/70">Follow-up visit</span>
+                  <span className="font-bold">Registration skipped</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-white/70">Already on record</span>
+                  <span className="font-bold num">-{plan.stats.remembered}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-white/70">App works these out</span>
+                  <span className="font-bold num">-{plan.stats.derived}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                {[
+                  ['5 registers need', plan.stats.baseline, 'entries'],
+                  ['Same thing asked twice', -(plan.stats.baseline - plan.stats.unique), ''],
+                  ['App works these out', -plan.stats.derived, ''],
+                  ['Already known', -plan.stats.remembered, ''],
+                  ['Not needed for her', -plan.stats.skipped, ''],
+                  ['Core questions only', -(plan.stats.fullAsked - plan.stats.asked), ''],
+                ].filter(([, v]) => v !== 0).map(([l, v, u]) => (
+                  <div key={l} className="flex justify-between gap-4">
+                    <span className="text-white/70">{l}</span>
+                    <span className="font-bold num">{v > 0 ? v : v === 0 ? '0' : v} {u}</span>
+                  </div>
+                ))}
+              </>
+            )}
             <div className="flex justify-between gap-4 pt-2 mt-2 border-t border-white/20">
               <span className="font-bold">You ask</span>
               <span className="font-bold num text-[17px]">{plan.stats.asked} questions</span>
@@ -122,6 +146,14 @@ export default function AskOnce() {
         </div>
         <Bar value={(index / Math.max(total, 1)) * 100} />
       </div>
+
+      {isFollowUp && index === 0 && !flash && (
+        <div className="mx-4 mt-3 rounded-xl bg-brand-soft border border-brand/25 px-3.5 py-2.5 anim-pop">
+          <span className="text-[13px] font-semibold text-brand-700 flex items-center gap-1.5">
+            <Icon name="check" size={15} stroke={2.6} /> Follow-up — only what changed this week
+          </span>
+        </div>
+      )}
 
       {flash && (
         <div className="mx-4 mt-3 rounded-xl bg-brand-soft border border-brand/25 px-3.5 py-2.5 anim-pop">

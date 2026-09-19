@@ -1,5 +1,6 @@
 import { QUESTION_BANK, REMEMBERED_PATHS } from '../data/canonical'
 import { derivableClosure, derivationInputs } from './derive'
+import { coreQuestions } from '../data/visitProfiles'
 
 /** path -> the question key that can supply it */
 const PROVIDER = (() => {
@@ -137,3 +138,49 @@ export function questionFor(key, facts = {}) {
 }
 
 export { PROVIDER }
+
+/**
+ * Streamlined encounter plan that limits questions to the 6-7 most important
+ * per visit type, using visitProfiles.js.
+ *
+ * On a follow-up visit (isFollowUp = true), identity/registration questions
+ * are omitted entirely — only the weekly-changing clinical parameters are
+ * shown. On a first visit, registration questions come first, then the weekly
+ * clinical ones.
+ *
+ * The full planEncounter() still runs under the hood so derivation stats and
+ * programme satisfaction remain accurate. This function only filters the
+ * question list the user sees.
+ */
+export function planCoreEncounter({ programmes, facts = {}, encounterType = 'Pregnancy', isFollowUp = false }) {
+  // run the full plan for stats
+  const full = planEncounter({ programmes, facts, encounterType })
+
+  // the core question keys for this visit type and follow-up state
+  const coreKeys = coreQuestions(encounterType, isFollowUp)
+
+  // Filter to only core questions that are in the full plan (i.e. not already
+  // remembered/derived). Also keep any question that has skip logic and the gate
+  // says "applicable" — even if it is not in the core list — because conditional
+  // questions like orsZincGiven and malariaTest only appear when their trigger
+  // symptom is present.
+  const coreSet = new Set(coreKeys)
+  const questions = full.questions.filter(k => coreSet.has(k))
+
+  const answered = questions.filter(k => isAnswered(k, facts))
+  const remaining = questions.filter(k => !isAnswered(k, facts))
+
+  return {
+    ...full,
+    questions,
+    answered,
+    remaining,
+    isFollowUp,
+    stats: {
+      ...full.stats,
+      asked: questions.length,
+      coreTotal: coreKeys.length,
+      fullAsked: full.stats.asked,
+    },
+  }
+}

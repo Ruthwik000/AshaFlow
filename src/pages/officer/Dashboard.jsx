@@ -4,7 +4,8 @@ import { buildBlock, units } from '../../engine/officer'
 import { OFFICER_ALERTS } from '../../data/seed'
 import programmes from '../../data/programmes'
 import Icon from '../../components/Icon'
-import { TopBar, Card, Section, Stat, Bar, Btn, Pill, Notice, List, Row } from '../../components/ui'
+import OfficerBar from '../../components/OfficerBar'
+import { Card, Section, Stat, Bar, Btn, Pill, Notice, List, Row } from '../../components/ui'
 
 const TONE = { late: 'text-late', due: 'text-due', info: 'text-info' }
 
@@ -18,8 +19,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <TopBar title="Block Health Office" sub="Rampur block · Dr A. Mishra"
-        back onBack={() => nav('/portals')} />
+      <OfficerBar title="Block Health Office" sub="Rampur Block · Barabanki District" />
 
       <main className="flex-1 px-4 py-4 space-y-5 pb-8">
 
@@ -35,8 +35,9 @@ export default function Dashboard() {
             sub={`${totals.due} more due`} />
         </div>
 
-        {/* the two things an officer can actually act on -------------------- */}
-        {(needsSupport.length > 0 || totals.waiting > 0) && (
+        {/* The Actionable Bento Tiles --------------------------------- */}
+        <div className="space-y-3">
+          {/* Top 2 Action Tiles */}
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => nav('/officer/workers')}
               className="press raise rounded-2xl p-4 text-left">
@@ -45,31 +46,55 @@ export default function Dashboard() {
                 {needsSupport.length} need support
               </div>
               <div className="text-[12px] text-ink-3 mt-0.5 leading-snug">
-                Carrying too much, behind, or short of stock
+                Carrying too much or behind
               </div>
             </button>
             <button onClick={() => nav('/officer/supply')}
               className="press raise rounded-2xl p-4 text-left">
               <span className="text-brand"><Icon name="firstaid" size={21} /></span>
               <div className="font-bold text-[15px] mt-2.5 leading-tight">
-                {totals.waiting} supply requests
+                {totals.waiting} kit requests
               </div>
               <div className="text-[12px] text-ink-3 mt-0.5 leading-snug">
-                Waiting on the block store
+                DVDMS Store 1-Tap Approval
               </div>
             </button>
           </div>
-        )}
+
+          {/* Featured Supply Chain Bento Tile: Stockout Heatmap */}
+          <button
+            onClick={() => nav('/officer/heatmap')}
+            className="press w-full rounded-2xl p-4 text-left raise border-l-4 border-l-late bg-gradient-to-r from-red-50/60 to-transparent">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-late shrink-0"><Icon name="chart" size={20} /></span>
+                  <span className="font-bold text-[15px] text-ink leading-tight">Village Drug Stockout Heatmap</span>
+                </div>
+                <span className="bg-red-100 text-red-800 text-[10.5px] font-bold px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                  2 Critical
+                </span>
+              </div>
+            </div>
+            <div className="text-[12px] text-ink-2 mt-1.5 leading-snug">
+              Monsoon Week 3: Chloroquine &amp; ORS buffers below 7 days in Kishanpur &amp; Sohagpur. Tap to view days of cover.
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-bold text-brand mt-2 pt-2 border-t border-line-2">
+              <span>DVDMS Supply Intelligence Radar</span>
+              <span>Open Heatmap ›</span>
+            </div>
+          </button>
+        </div>
 
         {/* by village ------------------------------------------------------ */}
         <Section title="By village">
           <div className="space-y-2.5">
             {villages.map(v => (
               <Card key={v.name} className="p-4">
-                <div className="flex justify-between items-baseline mb-2">
-                  <div>
+                <div className="flex flex-wrap justify-between items-baseline gap-x-2 gap-y-1 mb-2">
+                  <div className="min-w-0">
                     <span className="text-[15px] font-bold">{v.name}</span>
-                    <span className="text-[12px] text-ink-3 ml-2 num">
+                    <span className="text-[11.5px] text-ink-3 ml-1.5 num">
                       {v.ashas} {v.ashas === 1 ? 'ASHA' : 'ASHAs'} · {v.households} families · {v.people} people
                     </span>
                   </div>
@@ -77,7 +102,7 @@ export default function Dashboard() {
                     ${v.coverage < 70 ? 'text-due' : 'text-brand'}`}>{v.coverage}%</span>
                 </div>
                 <Bar value={v.coverage} tone={v.coverage < 70 ? 'due' : 'brand'} />
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-ink-3 mt-2 num">
+                <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[11px] text-ink-3 mt-2 num">
                   <span>{v.visits} visits done</span>
                   {v.overdue > 0 && <span className="text-late font-semibold">{v.overdue} overdue</span>}
                   {v.due > 0 && <span>{v.due} due</span>}

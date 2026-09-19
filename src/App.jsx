@@ -40,6 +40,7 @@ import OfficerDashboard from './pages/officer/Dashboard'
 import AddProgramme from './pages/officer/AddProgramme'
 import { Workers, AshaDetail } from './pages/officer/Workers'
 import Supply from './pages/officer/Supply'
+import StockoutMap from './pages/officer/StockoutMap'
 
 import WomanHome from './pages/woman/Home'
 import WomanRecords from './pages/woman/Records'
@@ -48,6 +49,7 @@ import WomanSchemeDetail from './pages/woman/SchemeDetail'
 import WomanAsk from './pages/woman/Ask'
 import WomanMe from './pages/woman/Me'
 import WomanNav from './components/WomanNav'
+import OfficerNav from './components/OfficerNav'
 
 function ScrollTop() {
   const { pathname } = useLocation()
@@ -88,6 +90,15 @@ function WomanLayout() {
     <Frame>
       <div className="flex-1 flex flex-col min-h-0"><Outlet /></div>
       <WomanNav />
+    </Frame>
+  )
+}
+
+function OfficerLayout() {
+  return (
+    <Frame>
+      <div className="flex-1 flex flex-col min-h-0"><Outlet /></div>
+      <OfficerNav />
     </Frame>
   )
 }
@@ -135,13 +146,14 @@ export default function App() {
           <Route path="/asha/proof" element={<Proof />} />
         </Route>
 
-        <Route element={<Open />}>
+        <Route element={<OfficerLayout />}>
           <Route path="/officer" element={<OfficerDashboard />} />
-          <Route path="/officer/add-programme" element={<AddProgramme />} />
-          <Route path="/officer/forms" element={<OfficerForms />} />
-          <Route path="/officer/workers" element={<Workers />} />
-          <Route path="/officer/asha/:id" element={<AshaDetail />} />
+          <Route path="/officer/heatmap" element={<StockoutMap />} />
           <Route path="/officer/supply" element={<Supply />} />
+          <Route path="/officer/workers" element={<Workers />} />
+          <Route path="/officer/forms" element={<OfficerForms />} />
+          <Route path="/officer/asha/:id" element={<AshaDetail />} />
+          <Route path="/officer/add-programme" element={<AddProgramme />} />
         </Route>
 
         <Route element={<WomanLayout />}>
