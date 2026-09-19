@@ -43,7 +43,7 @@ const EN = {
 
   'assist.title': 'Assistant', 'assist.sub': 'Your caseload, schemes and anything else',
   'assist.empty': 'How can I help?',
-  'assist.emptyBody': 'I can read your own {families} families and {people} people — ask who is due, anyone by name, your earnings, or any question at all.',
+  'assist.emptyBody': 'I can read your own {families} families and {people} people — ask who is due, anyone by name, medicine kit stock, or any question at all.',
   'assist.try': 'Try asking', 'assist.placeholder': 'Ask anything, or a name…',
   'assist.readFrom': 'Read from', 'assist.listening': 'Listening…',
   'assist.guard': 'Type, or hold a conversation by voice. Never medical advice, and it never changes a record.',
@@ -52,7 +52,7 @@ const EN = {
   'assist.generalNote': 'General guidance, not from your records. Check anything local with your ANM.',
   'assist.verifyNote': 'Scheme rules vary by state and revision — verify on the programme portal.',
   'assist.onDevice': 'on device',
-  'assist.canDo1': 'Who is due today', 'assist.canDo2': 'Your earnings',
+  'assist.canDo1': 'Who is due today', 'assist.canDo2': 'Medicine kit stock',
   'assist.canDo3': 'What a scheme needs', 'assist.canDo4': 'Talk instead of typing',
   'assist.thinking': 'Thinking',
 
@@ -112,7 +112,7 @@ const HI = {
 
   'assist.title': 'सहायक', 'assist.sub': 'आपका काम, योजनाएँ और बाक़ी सब',
   'assist.empty': 'मैं कैसे मदद करूँ?',
-  'assist.emptyBody': 'मैं आपके {families} परिवार और {people} लोगों का रिकॉर्ड पढ़ सकता हूँ — पूछिए आज किसके पास जाना है, किसी का नाम, आपकी कमाई, या कुछ भी।',
+  'assist.emptyBody': 'मैं आपके {families} परिवार और {people} लोगों का रिकॉर्ड पढ़ सकता हूँ — पूछिए आज किसके पास जाना है, किसी का नाम, दवाई किट का स्टॉक, या कुछ भी।',
   'assist.try': 'ये पूछकर देखें', 'assist.placeholder': 'कुछ भी पूछें, या नाम लिखें…',
   'assist.readFrom': 'इससे पढ़ा', 'assist.listening': 'सुन रहा हूँ…',
   'assist.guard': 'लिखिए, या बोलकर बात कीजिए। चिकित्सा सलाह कभी नहीं, और रिकॉर्ड कभी नहीं बदलता।',
@@ -121,7 +121,7 @@ const HI = {
   'assist.generalNote': 'यह सामान्य जानकारी है, आपके रिकॉर्ड से नहीं। स्थानीय बात ANM से पक्की कर लें।',
   'assist.verifyNote': 'योजना के नियम राज्य और संशोधन से बदलते हैं — पोर्टल पर जाँच लें।',
   'assist.onDevice': 'फ़ोन पर',
-  'assist.canDo1': 'आज किसके पास जाना है', 'assist.canDo2': 'आपकी कमाई',
+  'assist.canDo1': 'आज किसके पास जाना है', 'assist.canDo2': 'दवाई किट का स्टॉक',
   'assist.canDo3': 'योजना के लिए काग़ज़', 'assist.canDo4': 'लिखने की जगह बोलिए',
   'assist.thinking': 'सोच रहा हूँ',
 
@@ -181,7 +181,7 @@ const TE = {
 
   'assist.title': 'సహాయకుడు', 'assist.sub': 'మీ పని, పథకాలు, ఇంకా ఏదైనా',
   'assist.empty': 'నేను ఎలా సహాయపడగలను?',
-  'assist.emptyBody': 'మీ {families} కుటుంబాలు, {people} మంది రికార్డు నేను చదవగలను — ఈరోజు ఎవరి దగ్గరకు వెళ్లాలి, ఎవరి పేరైనా, మీ సంపాదన, లేదా ఏ ప్రశ్న అయినా అడగండి.',
+  'assist.emptyBody': 'మీ {families} కుటుంబాలు, {people} మంది రికార్డు నేను చదవగలను — ఈరోజు ఎవరి దగ్గరకు వెళ్లాలి, ఎవరి పేరైనా, మందుల కిట్ నిల్వలు, లేదా ఏ ప్రశ్న అయినా అడగండి.',
   'assist.try': 'ఇలా అడిగి చూడండి', 'assist.placeholder': 'ఏదైనా అడగండి, లేదా పేరు…',
   'assist.readFrom': 'దీని నుంచి చదివాను', 'assist.listening': 'వింటున్నాను…',
   'assist.guard': 'రాయండి, లేదా మాట్లాడుతూ సంభాషించండి. వైద్య సలహా ఇవ్వదు, రికార్డును మార్చదు.',
@@ -190,7 +190,7 @@ const TE = {
   'assist.generalNote': 'ఇది సాధారణ సమాచారం, మీ రికార్డు నుంచి కాదు. స్థానిక విషయాలు ANMని అడిగి నిర్ధారించుకోండి.',
   'assist.verifyNote': 'పథక నియమాలు రాష్ట్రాన్ని బట్టి మారతాయి — పోర్టల్‌లో సరిచూసుకోండి.',
   'assist.onDevice': 'ఫోన్‌లో',
-  'assist.canDo1': 'ఈరోజు ఎవరి దగ్గరకు', 'assist.canDo2': 'మీ సంపాదన',
+  'assist.canDo1': 'ఈరోజు ఎవరి దగ్గరకు', 'assist.canDo2': 'మందుల కిట్ నిల్వలు',
   'assist.canDo3': 'పథకానికి కాగితాలు', 'assist.canDo4': 'రాయడానికి బదులు మాట్లాడండి',
   'assist.thinking': 'ఆలోచిస్తున్నాను',
 

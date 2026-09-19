@@ -252,13 +252,43 @@ const KB = [
       actions: [{ label: 'Add a family', to: '/asha/families/new', icon: 'plus' }],
     }),
   },
+  /* -------------------------------------------------------- medicine kit */
+  {
+    id: 'medicine-kit',
+    match: /(medicine|kit|medkit|dawa|stock|paracetamol|ifa|ors|zinc|shortage|supply|running low)/i,
+    build: c => {
+      const kit = c.medicineKit || []
+      const out = kit.filter(m => m.qty === 0)
+      const low = kit.filter(m => m.qty > 0 && m.qty <= m.minQty)
+      const ok = kit.filter(m => m.qty > m.minQty)
+
+      const lines = []
+      if (out.length) {
+        lines.push(`Out of stock (${out.length}):\n` + list(out, m => `• ${m.name} — 0 ${m.unit} (min ${m.minQty})`))
+      }
+      if (low.length) {
+        lines.push(`Low stock (${low.length}):\n` + list(low, m => `• ${m.name} — ${m.qty} ${m.unit} left (min ${m.minQty})`))
+      }
+      if (!out.length && !low.length) {
+        lines.push(`All ${kit.length} items in your medicine kit are well stocked!`)
+      } else {
+        lines.push(`Well stocked (${ok.length}):\n` + list(ok.slice(0, 4), m => `• ${m.name} — ${m.qty} ${m.unit}`) + (ok.length > 4 ? `\n…and ${ok.length - 4} more.` : ''))
+      }
+
+      return {
+        text: lines.join('\n\n') + '\n\nRefills can be requested at the PHC or during your next monthly review.',
+        sources: ['Your medicine kit ledger'],
+        actions: [{ label: 'Open Medicine Kit', to: '/asha/medicine', icon: 'firstaid' }],
+      }
+    },
+  },
   {
     id: 'capability',
     match: /(what can you|who are you|help me|what do you do|kya kar sakte)/i,
     build: c => ({
       text: `I can read your own caseload — ${c.matrix.households} families, ${c.matrix.people} people — and answer from it.\n\n`
         + '• Who is due or overdue today\n• Anyone by name: status, schemes, last visit\n'
-        + '• Your earnings and what is still unclaimed\n• What a scheme needs and why a payment is stuck\n'
+        + '• Your medicine kit stock and shortages\n• What a scheme needs and why a payment is stuck\n'
         + '• Schedules, danger signs and referral\n\nAsk anything else too and I will answer it as best I can, '
         + 'and say plainly when it is general guidance rather than something from your records.',
       sources: [],
@@ -315,7 +345,7 @@ export function answerAsha(question, ctx) {
   return {
     id: 'fallback',
     text: `I could not find that in your records. I can tell you who is due, look up anyone by name, `
-      + `show your earnings, explain what a scheme needs, or why a payment is stuck.`,
+      + `check your medicine kit stock, explain what a scheme needs, or why a payment is stuck.`,
     sources: [],
     actions: [{ label: 'See your caseload', to: '/asha/families', icon: 'families' }],
   }
@@ -330,7 +360,7 @@ export function ashaSuggestions(ctx) {
   if (ctx.blocked.length) out.push(`Why is ${ctx.blocked[0].who}'s payment stuck?`)
   const preg = ctx.people.find(p => p.kind === 'pregnant')
   if (preg) out.push(`Tell me about ${preg.name.split(' ')[0]}`)
-  out.push('How much have I earned this month?')
+  out.push('What is running low in my medicine kit?')
   out.push('What documents does PMMVY need?')
   return out.slice(0, 4)
 }

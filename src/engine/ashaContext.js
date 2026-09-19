@@ -1,7 +1,7 @@
 import { db, getLearned } from '../db/db'
 import { buildSubjectFacts } from './prefill'
 import { caseloadMatrix, memberStatus, householdSummary } from './caseload'
-import { ASHA, ENROLMENTS, PROOFS, SCHEMES, REMINDERS } from '../data/seed'
+import { ASHA, ENROLMENTS, PROOFS, SCHEMES, REMINDERS, MEDICINE_KIT } from '../data/seed'
 
 /* =========================================================================
    What the worker's assistant knows.
@@ -61,11 +61,12 @@ function person(m, household, enrolments, tasks, encounters) {
 }
 
 export async function buildAshaContext() {
-  const [households, members, tasks, encounters, earnings, outbox, submissions, enrolRows] =
+  const [households, members, tasks, encounters, earnings, outbox, submissions, enrolRows, medKit] =
     await Promise.all([
       db.households.toArray(), db.members.toArray(), db.tasks.toArray(),
       db.encounters.toArray(), db.earnings.toArray(), db.outbox.toArray(),
       db.formSubmissions.toArray(), db.enrolments.toArray(),
+      db.medicineKit?.toArray().catch(() => []) || [],
     ])
 
   const enrolments = [...ENROLMENTS, ...enrolRows]
@@ -127,6 +128,7 @@ export async function buildAshaContext() {
     enrolments,
     blocked,
     proofTrouble,
+    medicineKit: (medKit && medKit.length) ? medKit : MEDICINE_KIT,
     reminders: REMINDERS.filter(r => r.on),
   }
 }

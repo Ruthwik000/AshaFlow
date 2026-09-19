@@ -162,8 +162,10 @@ export default function Assistant() {
   }
 
   const CAN = [
-    { icon: 'families', l: t('assist.canDo1') }, { icon: 'rupee', l: t('assist.canDo2') },
-    { icon: 'doc', l: t('assist.canDo3') }, { icon: 'assist', l: t('assist.canDo4') },
+    { icon: 'families', l: t('assist.canDo1'), prompt: 'Who do I need to visit today?' },
+    { icon: 'firstaid', l: t('assist.canDo2'), prompt: 'What is running low in my medicine kit?' },
+    { icon: 'doc', l: t('assist.canDo3'), prompt: 'What documents does PMMVY need?' },
+    { icon: 'assist', l: t('assist.canDo4'), action: 'voice' },
   ]
 
   const live = voiceState !== 'idle'
@@ -197,10 +199,18 @@ export default function Assistant() {
 
             <div className="grid grid-cols-2 gap-2.5 mt-6">
               {CAN.map(c => (
-                <div key={c.l} className="raise-sm rounded-2xl px-3.5 py-3 flex items-center gap-2.5">
+                <button key={c.l}
+                  onClick={() => {
+                    if (c.action === 'voice') {
+                      live ? stopVoice() : startVoice()
+                    } else if (c.prompt) {
+                      send(c.prompt)
+                    }
+                  }}
+                  className="press raise-sm rounded-2xl px-3.5 py-3 flex items-center gap-2.5 text-left active:opacity-90">
                   <span className="text-brand shrink-0"><Icon name={c.icon} size={17} /></span>
                   <span className="text-[12.5px] font-semibold text-ink-2 leading-tight">{c.l}</span>
-                </div>
+                </button>
               ))}
             </div>
 
