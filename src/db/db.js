@@ -1,5 +1,6 @@
 import Dexie from 'dexie'
-import { allHouseholds, allMembers, tasks, pastEncounters, earningsHistory, ASHA } from '../data/seed'
+import { allHouseholds, allMembers, tasks, pastEncounters, earningsHistory, ASHA,
+         MEDICINE_KIT, MEDICINE_LOG } from '../data/seed'
 
 export const db = new Dexie('ashaflow')
 
@@ -55,17 +56,36 @@ db.version(4).stores({
   enrolments: 'id, memberId, householdId, scheme',
 })
 
-const SEED_VERSION = 3
+db.version(5).stores({
+  households: 'id, village, houseNo',
+  members: 'id, householdId, role',
+  encounters: 'id, householdId, memberId, type, createdAt, synced',
+  outbox: 'encounterId, queuedAt',
+  earnings: 'id, encounterId, date, claimed',
+  tasks: 'id, householdId, level',
+  meta: 'key',
+  formSubmissions: 'id, formCode, memberId, householdId, createdAt, synced',
+  learnedFacts: 'key, memberId',
+  customForms: 'code, name, createdAt',
+  enrolments: 'id, memberId, householdId, scheme',
+  // the drug kit she carries, and every tablet in or out of it
+  medicineKit: 'id, category',
+  medicineLog: '++id, medicineId, date',
+})
+
+const SEED_VERSION = 5
 
 export async function ensureSeeded() {
   const seeded = await db.meta.get('seeded')
   if (seeded?.version === SEED_VERSION) return
   if (seeded) {                      // seed data changed — replace it, keep field additions
     await Promise.all([db.households.clear(), db.members.clear(),
-                       db.tasks.clear(), db.earnings.clear()])
+                       db.tasks.clear(), db.earnings.clear(),
+                       db.medicineKit.clear(), db.medicineLog.clear()])
     await db.encounters.where('id').startsWith('e-past-').delete()
   }
-  await db.transaction('rw', db.households, db.members, db.tasks, db.encounters, db.earnings, db.meta, async () => {
+  await db.transaction('rw', db.households, db.members, db.tasks, db.encounters, db.earnings,
+                       db.medicineKit, db.medicineLog, db.meta, async () => {
     await db.households.bulkPut(allHouseholds)
     await db.members.bulkPut(allMembers)
     await db.tasks.bulkPut(tasks)
@@ -73,6 +93,8 @@ export async function ensureSeeded() {
       ...e, createdAt: e.date, synced: 1, facts: e.facts || {}, outputCount: e.outputs,
     })))
     await db.earnings.bulkPut(earningsHistory.map(e => ({ ...e, encounterId: null })))
+    await db.medicineKit.bulkPut(MEDICINE_KIT.map(m => ({ ...m })))
+    await db.medicineLog.bulkAdd(MEDICINE_LOG.map(l => ({ ...l })))
     await db.meta.put({ key: 'seeded', value: true, version: SEED_VERSION, asha: ASHA })
   })
 }

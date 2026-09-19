@@ -605,10 +605,34 @@ export const PATH_LABELS = {
 }
 
 // Which paths a household remembers between visits, so they are never re-asked.
+/* What a household never has to say twice.
+ *
+ * The rule is simple: anything that does not change between two visits. Who
+ * she is, where she lives, which papers she holds, and — within one pregnancy
+ * — when it started and when it is due. Her name was missing from this list,
+ * which is why a follow-up visit opened by asking a woman her own name again.
+ *
+ * Almost nothing measured belongs here. Weight, blood pressure, haemoglobin,
+ * today's symptoms and today's doses are taken fresh every visit, which is the
+ * point of the visit. Height is the exception: an adult's does not change.
+ */
 export const REMEMBERED_PATHS = [
+  // the household
   'household.houseNo', 'household.headName', 'household.village',
   'household.membersCount', 'household.bplCard', 'household.hasToilet',
   'household.waterSource', 'household.cookingFuel', 'household.ayushmanCard',
+
+  // the person
+  'person.name', 'person.sex', 'person.age',
+  'vitals.height',                // measured once for an adult, not every visit
   'person.husbandName', 'person.caste',
   'person.aadhaarLast4', 'person.mobile', 'person.abhaId',
+
+  // this pregnancy — fixed once it is registered
+  'pregnancy.lmp', 'pregnancy.edd', 'pregnancy.rchId',
+  'pregnancy.registeredOn', 'pregnancy.gravida',
+
+  // this child — fixed facts of birth
+  'child.name', 'child.sex', 'child.dob', 'child.birthWeight',
+  'delivery.date', 'delivery.place', 'delivery.type',
 ]

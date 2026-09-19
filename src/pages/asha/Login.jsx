@@ -1,13 +1,30 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { ASHA } from '../../data/seed'
+import { ASHA, WOMAN } from '../../data/seed'
 import Icon from '../../components/Icon'
 import { Btn } from '../../components/ui'
 
 // This is intentionally a client-side demo credential. Real accounts need a
 // server-side identity provider, password hashing, reset flows and sessions.
 const DEMO_PASSWORD = 'ashaflow123'
+
+/* The beneficiary portal serves two people, and which one you are changes the
+   record, the schemes and the history behind every screen. So each has her own
+   sign-in rather than a toggle buried in settings: choosing the account is how
+   the portal is told who it is for. */
+const WOMEN = [
+  {
+    key: 'pregnant', who: WOMAN.pregnant.name, email: WOMAN.pregnant.email,
+    id: `House ${WOMAN.pregnant.houseNo} · ${WOMAN.pregnant.village}`,
+    note: WOMAN.pregnant.statusLine,
+  },
+  {
+    key: 'mother', who: WOMAN.mother.name, email: WOMAN.mother.email,
+    id: `House ${WOMAN.mother.houseNo} · ${WOMAN.mother.village}`,
+    note: WOMAN.mother.statusLine,
+  },
+]
 
 const ROLE = {
   asha: {
@@ -19,8 +36,8 @@ const ROLE = {
     email: 'officer@ashaflow.demo', to: '/officer',
   },
   woman: {
-    mark: 'user', name: 'Beneficiary', who: 'Sunita Devi', id: 'House 14 · Rampur',
-    email: 'sunita.devi@ashaflow.demo', to: '/woman',
+    mark: 'user', name: 'Beneficiary', who: WOMEN[0].who, id: WOMEN[0].id,
+    email: WOMEN[0].email, to: '/woman', accounts: WOMEN,
   },
 }
 
@@ -32,14 +49,18 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [err, setErr] = useState('')
+  const [account, setAccount] = useState(0)     // which beneficiary, when there are two
   const login = useStore(s => s.login)
+  const setWomanMode = useStore(s => s.setWomanMode)
   const nav = useNavigate()
+
+  const picked = r.accounts ? r.accounts[account] : null
 
   /* r.email is the demo address for this role. It was once undefined, which
      handed the controlled input an undefined value — React quietly switched
      the field to uncontrolled and the button appeared to do nothing. Never
      let a missing field reach an input. */
-  const demoEmail = r.email || `${role}@ashaflow.demo`
+  const demoEmail = picked?.email || r.email || `${role}@ashaflow.demo`
 
   const useDemoAccount = () => {
     setEmail(demoEmail)
@@ -54,10 +75,16 @@ export default function Login() {
       setErr('Enter your email address and password.')
       return
     }
-    if (enteredEmail !== demoEmail.toLowerCase() || password !== DEMO_PASSWORD) {
+    // any of this role's accounts may sign in, whichever card is showing
+    const match = r.accounts
+      ? r.accounts.find(a => a.email.toLowerCase() === enteredEmail)
+      : (enteredEmail === demoEmail.toLowerCase() ? { email: demoEmail } : null)
+
+    if (!match || password !== DEMO_PASSWORD) {
       setErr('That email or password does not match this demo account.')
       return
     }
+    if (match.key) setWomanMode(match.key)      // the portal follows the account
     login(role, enteredEmail)
     nav(r.to, { replace: true })
   }
@@ -77,9 +104,28 @@ export default function Login() {
 
       <div className="raise rounded-2xl px-4 py-3.5 mb-6">
         <div className="text-[12px] text-ink-3">Signing in to</div>
-        <div className="font-semibold text-[16px] mt-0.5">{r.who}</div>
-        <div className="text-[12.5px] text-ink-3 num">{r.id}</div>
+        <div className="font-semibold text-[16px] mt-0.5">{picked?.who || r.who}</div>
+        <div className="text-[12.5px] text-ink-3 num">{picked?.id || r.id}</div>
+        {picked?.note && <div className="text-[12.5px] text-brand mt-0.5">{picked.note}</div>}
       </div>
+
+      {r.accounts && (
+        <div className="mb-5">
+          <div className="text-[13px] font-semibold mb-2">Which account?</div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {r.accounts.map((a, i) => (
+              <button key={a.key} type="button"
+                onClick={() => { setAccount(i); setEmail(''); setPassword(''); setErr('') }}
+                className={`press rounded-2xl px-3 py-3 text-left ${account === i ? 'btn-solid text-white' : 'raise'}`}>
+                <div className="text-[13.5px] font-bold leading-tight">{a.who}</div>
+                <div className={`text-[11.5px] mt-1 leading-snug ${account === i ? 'text-white/75' : 'text-ink-3'}`}>
+                  {a.note}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <form className="space-y-4" onSubmit={submit} noValidate>
         <div>

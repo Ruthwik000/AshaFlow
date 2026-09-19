@@ -4,6 +4,14 @@ import { useStore } from '../store/useStore'
 import { WOMAN } from '../data/seed'
 import Icon from './Icon'
 import { IconBtn, Avatar, LangSheet } from './ui'
+import { useT } from '../i18n'
+
+/** "5 months pregnant" or "Mother of Aarav, 3 months", in her language. */
+export function statusLine(t, mode, w) {
+  return mode === 'pregnant'
+    ? t('w.statusPregnant', { n: w.month })
+    : t('w.statusMother', { name: w.baby.name, n: w.baby.months })
+}
 
 /** Branded header for the beneficiary portal. Same shape as the ASHA AppBar. */
 export default function WomanBar({ title, sub, right }) {
@@ -11,6 +19,7 @@ export default function WomanBar({ title, sub, right }) {
   const mode = useStore(s => s.womanMode)
   const lang = useStore(s => s.lang)
   const [langOpen, setLangOpen] = useState(false)
+  const t = useT()
   const w = WOMAN[mode]
 
   return (
@@ -29,18 +38,18 @@ export default function WomanBar({ title, sub, right }) {
               </svg>
             </span>
             <span className="font-bold text-[16.5px] tracking-[-0.015em] flex-1">ASHAFlow</span>
-            <button onClick={() => setLangOpen(true)} aria-label="Language"
+            <button onClick={() => setLangOpen(true)} aria-label={t('w.language')}
               className="press raise-sm h-9 px-2.5 rounded-xl grid place-items-center text-ink-2 text-[11.5px] font-bold uppercase">
               {lang}
             </button>
-            <IconBtn icon="phone" label="Call my ASHA" size={36} />
-            <Avatar name={w.name} size={36} onClick={() => nav('/woman/me')} label="My details" />
+            <IconBtn icon="phone" label={t('w.callMyAsha')} size={36} />
+            <Avatar name={w.name} size={36} onClick={() => nav('/woman/me')} label={t('w.myDetailsLabel')} />
           </div>
 
           <div className="flex items-end gap-3 mt-3">
             <div className="min-w-0 flex-1">
               <div className="font-bold text-[19px] leading-tight tracking-[-0.015em] truncate">{title ?? w.name}</div>
-              <div className="text-[12.5px] text-ink-3 leading-tight truncate mt-0.5">{sub ?? w.statusLine}</div>
+              <div className="text-[12.5px] text-ink-3 leading-tight truncate mt-0.5">{sub ?? statusLine(t, mode, w)}</div>
             </div>
             {right}
           </div>

@@ -1,5 +1,5 @@
 import { runDerivations } from './derive'
-import { PATH_LABELS } from '../data/canonical'
+import { PATH_LABELS, REMEMBERED_PATHS } from '../data/canonical'
 
 /**
  * Build the canonical record for one person, from everything already stored:
@@ -34,6 +34,35 @@ export function buildSubjectFacts({ household, member, encounters = [], learned 
 
   Object.assign(facts, learned)
   const { facts: full, trace } = runDerivations(facts)
+  return { facts: full, trace }
+}
+
+/* =========================================================================
+   What a new visit may start from.
+
+   buildSubjectFacts returns everything ever recorded about a person, which is
+   right for answering a question and wrong for opening a visit: last month's
+   weight, blood pressure and haemoglobin would arrive already filled in, and
+   the visit exists precisely to measure them again.
+
+   So a visit carries forward only what does not change — who she is, where she
+   lives, when this pregnancy started, what a scanned form once asked her — and
+   everything measured is asked fresh. The derivations then run over that, so
+   ages and due dates are recomputed rather than remembered stale.
+   ========================================================================= */
+const STABLE = new Set(REMEMBERED_PATHS)
+const carryable = k => STABLE.has(k) || k.startsWith('scan.')
+
+export function buildCarryForwardFacts({ household, member, encounters = [], learned = {} }) {
+  const stable = {}
+  for (const e of [...encounters].sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))) {
+    for (const [k, v] of Object.entries(e.facts || {})) if (carryable(k)) stable[k] = v
+  }
+  for (const [k, v] of Object.entries(learned)) if (carryable(k)) stable[k] = v
+
+  // household and member rows are stable by nature, so they pass through whole
+  const { facts } = buildSubjectFacts({ household, member, encounters: [], learned: {} })
+  const { facts: full, trace } = runDerivations({ ...facts, ...stable })
   return { facts: full, trace }
 }
 

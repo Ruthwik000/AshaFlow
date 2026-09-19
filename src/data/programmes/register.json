@@ -4,72 +4,154 @@
   "shortName": "Village register",
   "icon": "book",
   "colour": "ink",
-  "source": "ASHA village health register and eligible-couple register, standard column order",
+  "source": "ASHA village health register / eligible couple register, standard column order",
   "sourceUrl": "https://nhm.gov.in/",
   "note": "Legally required on paper. Generated in physical column order for copying.",
-  "version": 2,
+  "version": 1,
   "fields": [
-    { "id": "c1",  "label": "House no.",            "from": "household.houseNo",      "required": true },
-    { "id": "c2",  "label": "Head of family",       "from": "household.headName",     "required": true },
-    { "id": "c3",  "label": "Village",              "from": "household.village",      "required": true },
-    { "id": "c4",  "label": "Members",              "from": "household.membersCount", "required": true },
-    { "id": "c5",  "label": "BPL card",             "from": "household.bplCard",      "required": false },
-    { "id": "c6",  "label": "Toilet in house",      "from": "household.hasToilet",    "required": false },
-    { "id": "c7",  "label": "Drinking water source","from": "household.waterSource",  "required": false },
-    { "id": "c8",  "label": "Name",                 "from": "person.name",            "required": true },
-    { "id": "c9",  "label": "Age",                  "from": "person.age",             "required": true,
-      "for": ["Pregnancy", "Health check", "Illness", "Household survey"] },
-    { "id": "c10", "label": "Sex",                  "from": "person.sex",             "required": true,
-      "for": ["Pregnancy", "Health check", "Illness", "Household survey"] },
-    { "id": "c11", "label": "Husband / father",     "from": "person.husbandName",     "required": true },
-    { "id": "c12", "label": "Category",             "from": "person.caste",           "required": false },
-    { "id": "c13", "label": "Date of visit",        "from": "visit.date",             "required": true },
-    { "id": "c14", "label": "Purpose of visit",     "from": "visit.type",             "required": true },
-    { "id": "c15", "label": "Consent taken",        "from": "visit.consentGiven",     "required": true },
-
-    { "id": "p1",  "label": "LMP",                  "from": "pregnancy.lmp",          "required": true,  "for": ["Pregnancy"] },
-    { "id": "p2",  "label": "EDD",                  "from": "pregnancy.edd",          "required": true,  "for": ["Pregnancy"] },
-    { "id": "p3",  "label": "High risk",            "from": "pregnancy.isHighRisk",   "required": true,  "for": ["Pregnancy"] },
-    { "id": "p4",  "label": "TT/Td 1",              "from": "tt.dose1Given",          "required": true,  "for": ["Pregnancy"] },
-    { "id": "p5",  "label": "IFA given",            "from": "ifa.given",              "required": true,  "for": ["Pregnancy"] },
-    { "id": "p6",  "label": "IFA tablets",          "from": "ifa.tablets",            "required": true,  "for": ["Pregnancy"] },
-
-    { "id": "n1",  "label": "Child's name",         "from": "child.name",             "required": true,  "for": ["Newborn", "Child vaccine"] },
-    { "id": "n2",  "label": "Child's date of birth","from": "child.dob",              "required": true,  "for": ["Newborn", "Child vaccine"] },
-    { "id": "n3",  "label": "Child's sex",          "from": "child.sex",              "required": true,  "for": ["Newborn", "Child vaccine"] },
-    { "id": "n4",  "label": "Birth weight",         "from": "child.birthWeight",      "required": true,  "for": ["Newborn"] },
-    { "id": "n5",  "label": "Place of delivery",    "from": "delivery.place",         "required": true,  "for": ["Newborn"] },
-    { "id": "n6",  "label": "HBNC visit number",    "from": "newborn.visitNumber",    "required": true,  "for": ["Newborn"] },
-    { "id": "n7",  "label": "Referred",             "from": "newborn.referred",       "required": true,  "for": ["Newborn"] },
-    { "id": "n8",  "label": "Next visit due",       "from": "newborn.nextVisitDue",   "required": true,  "for": ["Newborn"] },
-
-    { "id": "v1",  "label": "Vaccines given",       "from": "imm.dosesGiven",         "required": true,  "for": ["Child vaccine"] },
-    { "id": "v2",  "label": "Next vaccine due",     "from": "imm.nextDue",            "required": true,  "for": ["Child vaccine"] },
-
-    { "id": "k1",  "label": "CBAC score",           "from": "ncd.cbacScore",          "required": true,  "for": ["Health check"] },
-    { "id": "k2",  "label": "Referred for screening","from": "ncd.screenRequired",    "required": true,  "for": ["Health check"] },
-
-    { "id": "i1",  "label": "Symptoms",             "from": "illness.symptoms",       "required": true,  "for": ["Illness"] },
-    { "id": "i2",  "label": "Days ill",             "from": "illness.daysIll",        "required": true,  "for": ["Illness"] },
-    { "id": "i3",  "label": "Syndrome (IDSP)",      "from": "illness.syndrome",       "required": true,  "for": ["Illness"] },
-    { "id": "i3b", "label": "Danger signs",          "from": "illness.dangerSigns",    "required": true,  "for": ["Illness"] },
-    { "id": "i3c", "label": "Malaria test",          "from": "illness.malariaTest",    "required": false, "for": ["Illness"] },
-    { "id": "i3d", "label": "Paracetamol given",     "from": "illness.paracetamolGiven","required": false,"for": ["Illness"] },
-    { "id": "i4",  "label": "ORS and zinc given",   "from": "illness.orsZincGiven",   "required": true,  "for": ["Illness"] },
-    { "id": "i5",  "label": "Referred urgently",    "from": "illness.referred",       "required": true,  "for": ["Illness"] },
-
-    { "id": "h1",  "label": "Cooking fuel",         "from": "household.cookingFuel",  "required": false, "for": ["Household survey"] },
-    { "id": "h2",  "label": "Ayushman card",        "from": "household.ayushmanCard", "required": false, "for": ["Household survey"] },
-    { "id": "h3",  "label": "Eligible couples",     "from": "household.eligibleCouples","required": true,"for": ["Household survey"] },
-    { "id": "h4",  "label": "Family planning method","from": "household.fpMethod",    "required": true,  "for": ["Household survey"] },
-    { "id": "h5",  "label": "Pregnant women",       "from": "household.pregnantWomen","required": true,  "for": ["Household survey"] },
-    { "id": "h6",  "label": "Children under 5",     "from": "household.childrenUnder5","required": true, "for": ["Household survey"] },
-    { "id": "h7",  "label": "Birth since last visit","from": "household.birthsSince", "required": true,  "for": ["Household survey"] },
-    { "id": "h8",  "label": "Death since last visit","from": "household.deathsSince", "required": true,  "for": ["Household survey"] },
-    { "id": "h9",  "label": "Mosquito net used",    "from": "household.mosquitoNet",  "required": false, "for": ["Household survey"] },
-    { "id": "h10", "label": "Surveyed on",          "from": "household.surveyedOn",   "required": true,  "for": ["Household survey"] },
-
-    { "id": "r1",  "label": "Referred to",          "from": "referral.madeTo",        "required": true,
-      "for": ["Newborn", "Health check", "Illness"] }
+    {
+      "id": "c1",
+      "label": "House no.",
+      "from": "household.houseNo",
+      "required": true
+    },
+    {
+      "id": "c2",
+      "label": "Head of family",
+      "from": "household.headName",
+      "required": true
+    },
+    {
+      "id": "c3",
+      "label": "Village",
+      "from": "household.village",
+      "required": true
+    },
+    {
+      "id": "c4",
+      "label": "Members",
+      "from": "household.membersCount",
+      "required": true
+    },
+    {
+      "id": "c5",
+      "label": "BPL card",
+      "from": "household.bplCard",
+      "required": false
+    },
+    {
+      "id": "c6",
+      "label": "Toilet in house",
+      "from": "household.hasToilet",
+      "required": false
+    },
+    {
+      "id": "c7",
+      "label": "Drinking water source",
+      "from": "household.waterSource",
+      "required": false
+    },
+    {
+      "id": "c8",
+      "label": "Name",
+      "from": "person.name",
+      "required": true
+    },
+    {
+      "id": "c9",
+      "label": "Age",
+      "from": "person.age",
+      "required": true
+    },
+    {
+      "id": "c10",
+      "label": "Sex",
+      "from": "person.sex",
+      "required": true
+    },
+    {
+      "id": "c11",
+      "label": "Husband / father",
+      "from": "person.husbandName",
+      "required": true
+    },
+    {
+      "id": "c12",
+      "label": "Category",
+      "from": "person.caste",
+      "required": false
+    },
+    {
+      "id": "c13",
+      "label": "Date of visit",
+      "from": "visit.date",
+      "required": true
+    },
+    {
+      "id": "c14",
+      "label": "Purpose of visit",
+      "from": "visit.type",
+      "required": true
+    },
+    {
+      "id": "c15",
+      "label": "Consent taken",
+      "from": "visit.consentGiven",
+      "required": true
+    },
+    {
+      "id": "c16",
+      "label": "LMP",
+      "from": "pregnancy.lmp",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "c17",
+      "label": "EDD",
+      "from": "pregnancy.edd",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "c18",
+      "label": "High risk",
+      "from": "pregnancy.isHighRisk",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "c19",
+      "label": "TT/Td 1",
+      "from": "tt.dose1Given",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "c20",
+      "label": "IFA given",
+      "from": "ifa.given",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "c21",
+      "label": "IFA tablets",
+      "from": "ifa.tablets",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    }
   ]
 }

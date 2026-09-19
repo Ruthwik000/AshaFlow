@@ -317,6 +317,94 @@ capture-to-five-outputs flow must work with venue wifi off — that is the claim
 > One or two lines per change. **Newest first.** Date · what changed · why.
 > Add an entry every time anything in this repo changes.
 
+### 2026-09-19 — the officer portal: who is carrying what, and getting supplies to them
+- The block dashboard was four static tiles and a village bar chart read out of a fixed array. It
+  answered none of the questions an officer actually opens a dashboard with: how many workers do I
+  have, where are they, how many families do they cover, who is struggling, and what do they need.
+- **New `engine/officer.js`.** Eight ASHAs across four villages, and **one of them is not data** —
+  ASHA-RMP-014 is the phone the app is running on, so her families, people, pregnancies, overdue
+  visits and drug kit are read from the local database. Record a visit in the worker app and the
+  officer's number moves. Her row is badged **Live** and the detail page says why.
+- **Three screens.** The dashboard (workers, villages, families, pregnancies, overdue, and the two
+  things he can act on); `/officer/workers` with a village filter and a detail page per worker; and
+  `/officer/supply`, the block store.
+- **The supply loop is real, and it crosses the portals.** The live worker's shortages are computed
+  from her actual `medicineKit` rows — she files nothing, the gap simply appears in the officer's
+  store. Dispatching writes the stock back to her kit and adds a line to her medicine log saying the
+  block store sent it. Verified end to end: sent 20 packs → the item left her at-or-below-minimum
+  list → her own Med Kit screen went from 2 out of stock to 1, with "block store" in the log. A
+  dashboard that only counts is a report, and a report does not get tablets to a woman who has none.
+- **The ethic held, because the user asked for per-worker progress and that is exactly where this
+  goes wrong.** There is no score, no rank, and nothing sorted by output. The village percentage is
+  visits done against visits due — the area's work, not a mark for anyone in it. The worker list
+  sorts by area and the support list by how many problems she is carrying. The only badge on a
+  worker says what she needs, so a visit to her page ends in help being sent rather than a remark
+  being recorded. Both screens say so on the page.
+- Smoke: **PASS, 47 routes × 2 configs.**
+
+### 2026-09-19 — the beneficiary portal never spoke her language, and two people shared one login
+- **Not one of the eight beneficiary screens read the language setting.** The chip in the header
+  changed `lang` and nothing else; the whole portal was hardcoded English. New `i18n/woman.js` holds
+  ~110 keys in English, Hindi and Telugu — kept in its own file because it is the largest block of
+  copy in the app, it belongs to one audience, and `i18n/index.js` is being edited by another
+  session. `useT()` gained `{name}` interpolation so a sentence stays one translatable string
+  instead of three fragments glued together in English word order.
+- Converted `WomanBar`, `WomanNav`, Home, My record, Schemes, one scheme, Me and Ask. Verified all
+  five routes in all three languages.
+- **The danger signs and the status line** were seeded English shown on every screen, so they carry
+  translation keys now: "5 months pregnant" / "{name} की माँ, 3 महीने".
+- **What is still English, and why.** Scheme text, news bodies, visit labels and ministry names are
+  clinical and official wording. This project's rule is that such wording is translated by a person,
+  not a machine, so the news section now says so plainly in her language rather than leaving her to
+  wonder — the same honesty the assistant already uses for an unreviewed answer.
+- **Two beneficiaries, one login.** The portal serves a pregnant woman and a mother with a baby, and
+  which one you are changes the record, the schemes and the history behind every screen — but the
+  mode was a toggle buried in settings. Each now has her own credentials on `/login?as=woman`, the
+  card picker sets which, and signing in sets `womanMode`, so choosing the account *is* how the
+  portal is told who it is for. Verified: sunita.devi@ → pregnant, rekha.kumari@ → mother.
+- Smoke: **PASS, 43 routes × 2 configs.**
+
+### 2026-09-19 — a missing export took the whole app down
+- `Home.jsx` imported `MEDICINE_KIT` from `seed.js`, which never exported it. Another editing
+  session had added the Medicine Kit screen, its route, its nav item and its i18n keys, but not the
+  data or the Dexie tables, so the import threw and the app would not build at all.
+- Added the kit (14 items with category, unit, quantity and a minimum level), a short movement log
+  so the history is not empty, and `db.version(5)` with `medicineKit` / `medicineLog`, seeded and
+  cleared with the rest. The screen reads 14 items · 4 low · 2 out of stock.
+- **Two sessions are editing this repo.** Twenty-eight files had drifted once already; ten more
+  changed mid-task this time, including two new screens. The routine now is: hash every file in
+  `src`, compare, and pull what differs before touching anything. A blanket copy from the uploads
+  folder is not safe — it still holds older staged copies and silently reverted four files.
+
+### 2026-09-19 — a follow-up visit was asking everything again
+- **The visit never loaded the person's record.** `VisitType.start()` seeded the draft with the
+  *household's* facts only — no member row, no past encounters, nothing learned. So the second visit
+  to the same woman opened exactly like the first. The whole "ask once" claim was true in the engine
+  and untrue in the flow.
+- **`REMEMBERED_PATHS` was missing the person.** It listed the household and a few documents, but not
+  her name, sex, age, or the LMP that fixes a pregnancy. A follow-up opened by asking a woman her own
+  name. Added the person, this pregnancy, this child's facts of birth — and `vitals.height`, because
+  an adult's height is measured once, not monthly. Nothing else measured is on the list.
+- **New `buildCarryForwardFacts()`.** Seeding the *full* record was the opposite mistake: last visit's
+  weight, blood pressure and haemoglobin arrive already answered, and taking them again is the point
+  of the visit. A visit now carries forward only what does not change, then runs the derivations over
+  it, so ages and due dates are recomputed rather than remembered stale.
+- **No schema field was scoped to a visit type.** Every `for` array was missing, so `fieldsFor()`
+  never filtered and a child's immunisation visit dragged in the whole CBAC NCD checklist — all six
+  tiles claimed the same 68 fields. Scoped all 87 fields by the part of the record they belong to.
+  Baselines are now honest per visit: Pregnancy 68, Newborn 53, Child vaccine 47, Health check 56,
+  Illness 48, Household survey 39.
+- **The person list now shows the number that matters.** Each name carries "Follow-up · 5 questions ·
+  21 already on her record" or "First visit · 10 questions", computed from that person's own record.
+  The tile keeps the first-visit number; the two agree now that both pass `__encounterType`, which
+  steers wording, derivations and skip logic.
+- Fixed in passing, both visible on screen: the seed generator gave two children in one house the
+  same name, and called every child over five an "adolescent".
+- Measured end to end: **first visit 68 → 10** (name, age, LMP, gravida, weight, height, BP, Hb, Td,
+  IFA); **follow-up 68 → 5** (weight, BP, Hb, Td, IFA — only what is measured today). Confirmed the
+  carry-forward leaves `vitals.weight/hb/bpSys` undefined where the full record would have filled
+  them. Smoke: **PASS, 40 routes × 2 configs.**
+
 ### 2026-09-19 — the mapping control appeared where it was least useful
 - **It was shown only for fields the reader could not match, or matched unsurely.** That is exactly
   backwards. OCR is confidently wrong all the time, and a confident wrong match — "Name of pregnant

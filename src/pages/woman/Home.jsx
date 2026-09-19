@@ -5,19 +5,21 @@ import { WOMAN } from '../../data/seed'
 import Icon from '../../components/Icon'
 import WomanBar from '../../components/WomanBar'
 import { Card, Section, Bar, Btn, List, Row, Notice, Pill, rupee, fmtDate, daysFromNow } from '../../components/ui'
+import { useT } from '../../i18n'
 
 const TAG = {
-  foryou:  { l: 'For you',      c: 'bg-brand-soft text-brand' },
-  village: { l: 'Your village', c: 'bg-info-soft text-info' },
-  general: { l: 'General',      c: 'bg-line-2 text-ink-3' },
+  foryou:  { k: 'w.tagForYou',  c: 'bg-brand-soft text-brand' },
+  village: { k: 'w.tagVillage', c: 'bg-info-soft text-info' },
+  general: { k: 'w.tagGeneral', c: 'bg-line-2 text-ink-3' },
 }
 
 export default function WomanHome() {
   const nav = useNavigate()
+  const t = useT()
   const mode = useStore(s => s.womanMode)
   const [subject] = useSubject(mode)
   const w = WOMAN[mode]
-  if (!subject) return <div className="p-6 text-ink-3">Reading your record…</div>
+  if (!subject) return <div className="p-6 text-ink-3">{t('w.reading')}</div>
   const { schemes, news, danger, timeline, liveCount } = subject
   const recent = timeline.slice(0, 2)
 
@@ -25,14 +27,16 @@ export default function WomanHome() {
                          .find(st => st.state === 'blocked')
 
   const progress = mode === 'pregnant'
-    ? { label: `Month ${w.month} of 9`, right: `Baby due ${fmtDate(w.edd)}`, pct: (w.month / 9) * 100 }
-    : { label: `${w.baby.name} is ${w.baby.months} months old`, right: `Born ${fmtDate(w.baby.dob)}`, pct: (w.baby.months / 12) * 100 }
+    ? { label: t('w.monthOf', { n: w.month }), right: t('w.babyDue', { d: fmtDate(w.edd) }),
+        pct: (w.month / 9) * 100 }
+    : { label: t('w.babyIs', { name: w.baby.name, n: w.baby.months }),
+        right: t('w.born', { d: fmtDate(w.baby.dob) }), pct: (w.baby.months / 12) * 100 }
 
   const TILES = [
-    { icon: 'history', t: 'My record',  s: 'Every step, in order',      to: '/woman/records' },
-    { icon: 'wallet',  t: 'Schemes',    s: 'What you are entitled to',  to: '/woman/schemes' },
-    { icon: 'message', t: 'Ask',        s: 'Your questions, answered',  to: '/woman/ask' },
-    { icon: 'hospital', t: 'Emergency', s: 'Call 102 — free',           to: '/woman', tone: 'late' },
+    { icon: 'history',  k: 'w.tileRecord',    to: '/woman/records' },
+    { icon: 'wallet',   k: 'w.tileSchemes',   to: '/woman/schemes' },
+    { icon: 'message',  k: 'w.tileAsk',       to: '/woman/ask' },
+    { icon: 'hospital', k: 'w.tileEmergency', to: '/woman', tone: 'late' },
   ]
 
   return (
@@ -55,7 +59,7 @@ export default function WomanHome() {
               <Icon name="calendar" size={19} />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="text-[12.5px] text-ink-2">Next</div>
+              <div className="text-[12.5px] text-ink-2">{t('w.next')}</div>
               <div className="text-[18px] font-bold leading-tight mt-0.5">{w.nextVisit.label}</div>
               <div className="text-[13px] text-ink-2 mt-1 num">
                 {fmtDate(w.nextVisit.date)} · {daysFromNow(w.nextVisit.date)}
@@ -64,38 +68,40 @@ export default function WomanHome() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2.5 mt-4">
-            <Btn size="md" tone="ghost"><Icon name="bell" size={17} /> Remind me</Btn>
-            <Btn size="md" tone="ghost"><Icon name="phone" size={17} /> Call ASHA</Btn>
+            <Btn size="md" tone="ghost"><Icon name="bell" size={17} /> {t('w.remindMe')}</Btn>
+            <Btn size="md" tone="ghost"><Icon name="phone" size={17} /> {t('w.callAsha')}</Btn>
           </div>
         </Card>
 
         {blocked && (
-          <Notice tone="late" title="One thing is holding up your money"
+          <Notice tone="late" title={t('w.blockedTitle')}
             action={<Btn size="md" onClick={() => nav(`/woman/scheme/${blocked.scheme.code}`)}>
-              See what to do
+              {t('w.seeWhatToDo')}
             </Btn>}>
             <b className="text-ink">{blocked.scheme.short}</b>
-            {blocked.amount > 0 ? ` — ${rupee(blocked.amount)} not released. ` : ' — '}
+            {blocked.amount > 0 ? ` — ${t('w.notReleased', { amount: rupee(blocked.amount) })} ` : ' — '}
             {blocked.blocker}
           </Notice>
         )}
 
         <div className="grid grid-cols-2 gap-3">
           {TILES.map(x => (
-            <button key={x.t} onClick={() => nav(x.to)}
+            <button key={x.k} onClick={() => nav(x.to)}
               className={`press w-full text-left rounded-2xl p-4 ${x.tone === 'late' ? 'bg-late-soft border border-late/25' : 'raise'}`}
               style={x.tone === 'late' ? { boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6)' } : undefined}>
               <span className={x.tone === 'late' ? 'text-late' : 'text-brand'}>
                 <Icon name={x.icon} size={21} />
               </span>
-              <div className={`font-bold text-[15px] mt-2.5 leading-tight ${x.tone === 'late' ? 'text-late' : ''}`}>{x.t}</div>
-              <div className={`text-[12px] mt-0.5 leading-snug ${x.tone === 'late' ? 'text-late/75' : 'text-ink-3'}`}>{x.s}</div>
+              <div className={`font-bold text-[15px] mt-2.5 leading-tight ${x.tone === 'late' ? 'text-late' : ''}`}>{t(x.k)}</div>
+              <div className={`text-[12px] mt-0.5 leading-snug ${x.tone === 'late' ? 'text-late/75' : 'text-ink-3'}`}>{t(x.k + 'Sub')}</div>
             </button>
           ))}
         </div>
 
-        <Section title={liveCount ? `Latest in your record · ${liveCount} new` : 'Latest in your record'} action={
-          <button onClick={() => nav('/woman/records')} className="text-[12.5px] font-semibold text-brand">See all ›</button>
+        <Section title={liveCount ? t('w.latestNew', { n: liveCount }) : t('w.latest')} action={
+          <button onClick={() => nav('/woman/records')} className="text-[12.5px] font-semibold text-brand">
+            {t('w.seeAll')} ›
+          </button>
         }>
           <List>
             {recent.map(r => (
@@ -106,29 +112,35 @@ export default function WomanHome() {
           </List>
         </Section>
 
-        <Section title="Go to hospital at once if">
+        <Section title={t('w.dangerTitle')}>
           <Card className="p-4">
             <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
               {danger.map(d => (
                 <div key={d.label} className="flex items-start gap-2.5">
                   <span className="text-late shrink-0 mt-0.5"><Icon name={d.icon} size={18} /></span>
-                  <span className="text-[13px] font-medium leading-snug">{d.label}</span>
+                  <span className="text-[13px] font-medium leading-snug">{d.key ? t(d.key) : d.label}</span>
                 </div>
               ))}
             </div>
             <Btn full tone="danger" size="md" className="mt-4">
-              <Icon name="phone" size={17} /> Call 102 — free ambulance
+              <Icon name="phone" size={17} /> {t('w.call102')}
             </Btn>
           </Card>
         </Section>
 
-        <Section title="News for you">
+        <Section title={t('w.newsTitle')}>
+          {t.lang !== 'en' && (
+            <div className="flex items-start gap-1.5 rounded-xl bg-due-soft border border-due/25 px-3 py-2 mb-2.5">
+              <span className="text-due shrink-0 mt-0.5"><Icon name="info" size={13} /></span>
+              <span className="text-[11.5px] text-due leading-snug">{t('w.contentEnglish')}</span>
+            </div>
+          )}
           <div className="space-y-2.5">
             {news.map(n => (
               <Card key={n.id} className="p-4">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${TAG[n.tag].c}`}>
-                    {TAG[n.tag].l}
+                    {t(TAG[n.tag].k)}
                   </span>
                   <span className="text-[11.5px] text-ink-3 num">{fmtDate(n.date)}</span>
                 </div>

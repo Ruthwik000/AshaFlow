@@ -22,12 +22,13 @@ import Landing from './pages/public/Landing'
 import Portals from './pages/public/Portals'
 import Families from './pages/asha/Families'
 import Family from './pages/asha/Family'
+import Person from './pages/asha/Person'
 import VisitType from './pages/asha/VisitType'
 import Consent from './pages/asha/Consent'
 import AskOnce from './pages/asha/AskOnce'
 import Review from './pages/asha/Review'
 import Outputs from './pages/asha/Outputs'
-import Earnings from './pages/asha/Earnings'
+import MedicineKit from './pages/asha/MedicineKit'
 import SyncPage from './pages/asha/SyncPage'
 import More from './pages/asha/More'
 import Profile from './pages/asha/Profile'
@@ -37,6 +38,8 @@ import Paper from './pages/asha/Paper'
 
 import OfficerDashboard from './pages/officer/Dashboard'
 import AddProgramme from './pages/officer/AddProgramme'
+import { Workers, AshaDetail } from './pages/officer/Workers'
+import Supply from './pages/officer/Supply'
 
 import WomanHome from './pages/woman/Home'
 import WomanRecords from './pages/woman/Records'
@@ -103,7 +106,7 @@ export default function App() {
           <Route path="/asha/families" element={<Families />} />
           <Route path="/asha/add" element={<Add />} />
           <Route path="/asha/assistant" element={<Assistant />} />
-          <Route path="/asha/earnings" element={<Earnings />} />
+          <Route path="/asha/medicine" element={<MedicineKit />} />
         </Route>
 
         <Route element={<Plain />}>
@@ -121,6 +124,7 @@ export default function App() {
           <Route path="/asha/families/new" element={<NewHousehold />} />
           <Route path="/asha/people/new" element={<NewPerson />} />
           <Route path="/asha/family/:id" element={<Family />} />
+          <Route path="/asha/person/:id" element={<Person />} />
           <Route path="/asha/visit/:householdId" element={<VisitType />} />
           <Route path="/asha/consent" element={<Consent />} />
           <Route path="/asha/capture" element={<AskOnce />} />
@@ -135,6 +139,9 @@ export default function App() {
           <Route path="/officer" element={<OfficerDashboard />} />
           <Route path="/officer/add-programme" element={<AddProgramme />} />
           <Route path="/officer/forms" element={<OfficerForms />} />
+          <Route path="/officer/workers" element={<Workers />} />
+          <Route path="/officer/asha/:id" element={<AshaDetail />} />
+          <Route path="/officer/supply" element={<Supply />} />
         </Route>
 
         <Route element={<WomanLayout />}>

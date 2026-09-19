@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { db } from '../../db/db'
+import { db, getLearned } from '../../db/db'
 import { useStore } from '../../store/useStore'
 import programmes from '../../data/programmes'
 import { planEncounter } from '../../engine/solver'
+import { buildCarryForwardFacts } from '../../engine/prefill'
 import { TopBar, Card } from '../../components/ui'
 import Icon from '../../components/Icon'
 
@@ -27,22 +28,66 @@ export default function VisitType() {
   const [h, setH] = useState(null)
   const [members, setMembers] = useState([])
   const [type, setType] = useState(null)
+  // each member's full record: household + member row + every past encounter +
+  // anything learned while filling a form, with the derivations run
+  const [records, setRecords] = useState({})
 
   useEffect(() => {
-    db.households.get(householdId).then(setH)
-    db.members.where('householdId').equals(householdId).toArray().then(setMembers)
+    let live = true
+    ;(async () => {
+      const household = await db.households.get(householdId)
+      const ms = await db.members.where('householdId').equals(householdId).toArray()
+      if (!live) return
+      setH(household); setMembers(ms)
+
+      const entries = await Promise.all(ms.map(async m => {
+        const [encounters, learned] = await Promise.all([
+          db.encounters.where('memberId').equals(m.id).toArray(),
+          getLearned(m.id),
+        ])
+        const { facts } = buildCarryForwardFacts({ household, member: m, encounters, learned })
+        return [m.id, { facts, visits: encounters }]
+      }))
+      if (live) setRecords(Object.fromEntries(entries))
+    })()
+    return () => { live = false }
   }, [householdId])
 
-  // The counter on each tile is computed, not written in. Change a schema file
-  // and the tile changes with it.
+  /* The tile counter is the first-visit number: what a household nobody has
+     met yet would be asked. It is computed, not written in — change a schema
+     file and the tile changes with it. */
   const plans = useMemo(() => Object.fromEntries(TYPES.map(t => [
-    t.k, planEncounter({ programmes, facts: h?.facts || {}, encounterType: t.k }),
+    t.k, planEncounter({
+      programmes, encounterType: t.k,
+      facts: { ...(h?.facts || {}), __encounterType: t.k },
+    }),
   ])), [h])
 
+  /* What THIS person will be asked, which is the number that matters. On a
+     follow-up almost everything is already on her record, so the plan collapses
+     — that collapse is the entire product, and it was invisible here because
+     the draft used to start from the household facts alone. */
+  const planFor = (member, t) => {
+    const rec = member ? records[member.id] : null
+    return {
+      // __encounterType steers the wording, the derivations and the skip
+      // logic, so it must be in the facts here too or this number and the one
+      // on the capture screen disagree
+      plan: planEncounter({
+        programmes, encounterType: t,
+        facts: { ...(rec?.facts || h?.facts || {}), __encounterType: t },
+      }),
+      visits: rec?.visits?.length || 0,
+      seen: (rec?.visits || []).some(e => e.type === t),
+    }
+  }
+
   const start = (t, member) => {
+    const rec = member ? records[member.id] : null
     startDraft({
       householdId, memberId: member?.id || null, memberName: member?.name || null,
-      type: t, facts: { ...(h?.facts || {}), __encounterType: t },
+      type: t,
+      facts: { ...(rec?.facts || h?.facts || {}), __encounterType: t },
     })
     nav('/asha/consent')
   }
@@ -98,19 +143,36 @@ export default function VisitType() {
           <>
             <p className="text-[13px] text-ink-2 mb-3 px-1">Who is this visit for?</p>
             <div className="space-y-2">
-              {candidates.map(m => (
-                <Card key={m.id} onClick={() => start(type, m)} className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-[16px]">{m.name}</div>
-                      <div className="text-[12.5px] text-ink-3 capitalize">{m.age} years · {m.role}</div>
+              {candidates.map(m => {
+                const { plan, visits, seen } = planFor(m, type)
+                const n = plan.stats.asked
+                return (
+                  <Card key={m.id} onClick={() => start(type, m)} className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-[16px]">{m.name}</div>
+                        <div className="text-[12.5px] text-ink-3 capitalize">{m.age} years · {m.role}</div>
+                        <div className="text-[12px] mt-1.5">
+                          <span className={`font-semibold ${seen ? 'text-brand' : 'text-ink-2'}`}>
+                            {seen ? 'Follow-up' : visits ? 'Known to you' : 'First visit'}
+                          </span>
+                          <span className="text-ink-3">
+                            {' · '}<b className="num text-ink-2">{n}</b> {n === 1 ? 'question' : 'questions'}
+                            {plan.stats.remembered > 0 &&
+                              ` · ${plan.stats.remembered} already on her record`}
+                          </span>
+                        </div>
+                      </div>
+                      <Icon name="chevron" size={18} className="text-ink-3" />
                     </div>
-                    <Icon name="chevron" size={18} className="text-ink-3" />
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                )
+              })}
               <Card onClick={() => start(type, null)} className="p-4">
                 <div className="font-semibold text-[16px]">Someone else or the whole household</div>
+                <div className="text-[12.5px] text-ink-3 mt-1">
+                  Nothing on record yet — <b className="num">{plans[type].stats.asked}</b> questions
+                </div>
               </Card>
             </div>
             <button onClick={() => setType(null)}

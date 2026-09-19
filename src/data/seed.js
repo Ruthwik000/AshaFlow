@@ -196,6 +196,53 @@ export const HER_RECORDS = [
     sentTo: ['RCH', 'HMIS', 'UWIN', 'REGISTER'] },
 ]
 
+/* ---- The workers a block officer is responsible for ------------------------
+   One of these is real: ASHA-RMP-014 is the worker whose phone this app is,
+   and her row is recomputed from the local database rather than read from
+   here, so a visit recorded in the field moves the officer's number. The rest
+   stand in for the other sub-centres.
+
+   Deliberately absent: any score, rank or ordering by output. An officer needs
+   to see who is carrying too much and who is short of supplies — not a league
+   table of the women doing the work. */
+export const OFFICER_ASHAS = [
+  { id: 'ASHA-RMP-014', name: 'Sunita Yadav',   village: 'Rampur',    subcentre: 'Rampur SC',    phone: '98765 21140', live: true,
+    households: 19, people: 83, pregnant: 6, under5: 17, visits: 34, due: 5, overdue: 1, synced: 100, joined: '2019-06-01', trained: ago(120) },
+  { id: 'ASHA-RMP-021', name: 'Phoolmati Devi', village: 'Rampur',    subcentre: 'Rampur SC',    phone: '98765 21188',
+    households: 22, people: 96, pregnant: 4, under5: 15, visits: 29, due: 7, overdue: 3, synced: 96,  joined: '2021-02-11', trained: ago(210) },
+  { id: 'ASHA-RMP-033', name: 'Sarita Kumari',  village: 'Rampur',    subcentre: 'Rampur SC',    phone: '99102 45511',
+    households: 17, people: 71, pregnant: 3, under5: 11, visits: 26, due: 4, overdue: 0, synced: 100, joined: '2020-08-19', trained: ago(95) },
+  { id: 'ASHA-KSN-007', name: 'Munni Devi',     village: 'Kishanpur', subcentre: 'Kishanpur East', phone: '97311 20984',
+    households: 31, people: 141, pregnant: 9, under5: 26, visits: 18, due: 16, overdue: 11, synced: 62, joined: '2017-04-02', trained: ago(430) },
+  { id: 'ASHA-KSN-012', name: 'Rina Kumari',    village: 'Kishanpur', subcentre: 'Kishanpur East', phone: '97311 20990',
+    households: 26, people: 118, pregnant: 5, under5: 22, visits: 21, due: 12, overdue: 7, synced: 71,  joined: '2022-09-15', trained: ago(60) },
+  { id: 'ASHA-BEL-004', name: 'Kaushalya Devi', village: 'Bela',      subcentre: 'Bela North',   phone: '96500 71223',
+    households: 18, people: 79, pregnant: 4, under5: 14, visits: 31, due: 3, overdue: 0, synced: 100, joined: '2016-01-20', trained: ago(150) },
+  { id: 'ASHA-BEL-009', name: 'Anita Devi',     village: 'Bela',      subcentre: 'Bela North',   phone: '96500 71240',
+    households: 20, people: 88, pregnant: 5, under5: 16, visits: 28, due: 5, overdue: 1, synced: 100, joined: '2018-11-05', trained: ago(180) },
+  { id: 'ASHA-SHG-002', name: 'Geeta Devi',     village: 'Sohagpur',  subcentre: 'Sohagpur SC',  phone: '94155 63007',
+    households: 24, people: 104, pregnant: 6, under5: 19, visits: 23, due: 8, overdue: 4, synced: 88,  joined: '2019-03-14', trained: ago(260) },
+]
+
+/* ---- What the sub-centres are asking the block store for -------------------
+   Sunita Yadav's request is not listed here: it is read from her actual drug
+   kit in the local database, so what the officer sees is what her phone says.
+   Amounts are demonstration values. */
+export const SUPPLY_REQUESTS = [
+  { id: 'sr1', ashaId: 'ASHA-KSN-007', item: 'IFA tablets (red)',    qty: 600, unit: 'tablets', raised: ago(9), urgency: 'late',
+    why: 'Out for 9 days. 9 pregnant women on her list are without tablets.' },
+  { id: 'sr2', ashaId: 'ASHA-KSN-007', item: 'Calcium tablets',      qty: 400, unit: 'tablets', raised: ago(9), urgency: 'late',
+    why: 'Out of stock since the last indent was missed.' },
+  { id: 'sr3', ashaId: 'ASHA-KSN-012', item: 'ORS sachets',          qty: 50,  unit: 'sachets', raised: ago(4), urgency: 'due',
+    why: 'Below the minimum level with the season starting.' },
+  { id: 'sr4', ashaId: 'ASHA-SHG-002', item: 'MCP cards',            qty: 30,  unit: 'cards',   raised: ago(3), urgency: 'due',
+    why: 'New registrations cannot be given a card.' },
+  { id: 'sr5', ashaId: 'ASHA-BEL-009', item: 'Chlorhexidine gel',    qty: 10,  unit: 'tubes',   raised: ago(2), urgency: 'info',
+    why: 'Routine top-up before two expected deliveries.' },
+  { id: 'sr6', ashaId: 'ASHA-RMP-021', item: 'Sanitary napkins',     qty: 40,  unit: 'packs',   raised: ago(6), urgency: 'due',
+    why: 'Adolescent session at the school next week.' },
+]
+
 export const OFFICER_VILLAGES = [
   { name: 'Rampur',    coverage: 86, visits: 148, overdue: 9,  synced: 98, ashas: 4 },
   { name: 'Kishanpur', coverage: 61, visits: 74,  overdue: 21, synced: 72, ashas: 3 },
@@ -292,17 +339,21 @@ function generateCaseload() {
         ...(pregnant ? { lmp: ago(int(30, 240)) } : {}),
       })
 
-      // children
+      // children — no two with the same name in one house
       const kids = Math.max(0, size - 2 - (r() < 0.3 ? 1 : 0))
+      const taken = new Set()
       for (let k = 0; k < kids && k < 3; k++) {
         // one newborn, and a decent spread of under-fives
         const months = (house - 40 === 3 && k === 0) ? int(0, 1)
           : r() < 0.42 ? int(2, 58) : int(60, 190)
         const sex = r() < 0.49 ? 'M' : 'F'
+        let name = pick(KIDS)
+        for (let tries = 0; taken.has(name) && tries < 12; tries++) name = pick(KIDS)
+        taken.add(name)
         members.push({
           id: id + 'c' + k, householdId: id,
-          name: pick(KIDS), age: Math.floor(months / 12), sex,
-          role: months < 12 ? 'infant' : months < 60 ? 'child' : 'adolescent',
+          name, age: Math.floor(months / 12), sex,
+          role: months < 12 ? 'infant' : months < 180 ? 'child' : 'adolescent',
           ...(months < 60 ? { dob: ago(Math.round(months * 30.4)) } : {}),
         })
       }
@@ -334,6 +385,36 @@ export const ENROLMENTS = [
   { memberId: 'm8', scheme: 'NPY',   label: 'Ni-kshay Poshan',      phase: 'Paid to Aug',       state: 'active',  updated: ago(20) },
   { memberId: 'm4', scheme: 'CBAC',  label: 'NCD screening',        phase: 'Not started',       state: 'due',     updated: ago(90) },
   { memberId: 'm10', scheme: 'RCH',  label: 'RCH / Maternal',       phase: 'Registration due',  state: 'due',     updated: ago(4) },
+]
+
+/* ---- The drug kit an ASHA carries -----------------------------------------
+   The ASHA Drug Kit is real: a small box she is issued and expected to keep
+   stocked from the sub-centre. Quantities below are demonstration values.
+   `minQty` is the level at which she should ask for more, not a clinical rule. */
+export const MEDICINE_KIT = [
+  { id: 'med1',  name: 'IFA tablets (red)',        category: 'Pregnancy and anaemia', icon: 'pill',        unit: 'tablets', qty: 180, minQty: 100 },
+  { id: 'med2',  name: 'IFA syrup (paediatric)',   category: 'Child health',          icon: 'bottle',      unit: 'ml',      qty: 100, minQty: 100 },
+  { id: 'med3',  name: 'Calcium tablets',          category: 'Pregnancy and anaemia', icon: 'pill',        unit: 'tablets', qty: 240, minQty: 120 },
+  { id: 'med4',  name: 'ORS sachets',              category: 'Diarrhoea',             icon: 'glass',       unit: 'sachets', qty: 12,  minQty: 20  },
+  { id: 'med5',  name: 'Zinc tablets (20 mg)',     category: 'Diarrhoea',             icon: 'pill',        unit: 'tablets', qty: 40,  minQty: 30  },
+  { id: 'med6',  name: 'Paracetamol (500 mg)',     category: 'Fever and pain',        icon: 'pill',        unit: 'tablets', qty: 0,   minQty: 30  },
+  { id: 'med7',  name: 'Paracetamol syrup',        category: 'Fever and pain',        icon: 'bottle',      unit: 'ml',      qty: 60,  minQty: 60  },
+  { id: 'med8',  name: 'Pregnancy test kits',      category: 'Testing',               icon: 'vial',        unit: 'kits',    qty: 8,   minQty: 5   },
+  { id: 'med9',  name: 'Chlorhexidine gel',        category: 'Newborn care',          icon: 'drop',        unit: 'tubes',   qty: 4,   minQty: 3   },
+  { id: 'med10', name: 'Oral contraceptive pills', category: 'Family planning',       icon: 'pill',        unit: 'strips',  qty: 15,  minQty: 10  },
+  { id: 'med11', name: 'Condoms',                  category: 'Family planning',       icon: 'shield',      unit: 'pieces',  qty: 60,  minQty: 40  },
+  { id: 'med12', name: 'Sanitary napkins',         category: 'Adolescent health',     icon: 'ribbon',      unit: 'packs',   qty: 0,   minQty: 10  },
+  { id: 'med13', name: 'Digital thermometer',      category: 'Equipment',             icon: 'thermometer', unit: 'pieces',  qty: 1,   minQty: 1   },
+  { id: 'med14', name: 'Bandages and gauze',       category: 'First aid',             icon: 'firstaid',    unit: 'packs',   qty: 6,   minQty: 4   },
+]
+
+/* A few movements already on the ledger, so the history is not empty. */
+export const MEDICINE_LOG = [
+  { medicineId: 'med1',  medicineName: 'IFA tablets (red)',    type: 'dispense', qty: 30, unit: 'tablets', to: 'Sunita Devi',  note: 'ANC 2 — one month',      date: ago(12) },
+  { medicineId: 'med4',  medicineName: 'ORS sachets',          type: 'dispense', qty: 4,  unit: 'sachets', to: 'Aarav (House 22)', note: 'Loose motions',      date: ago(6)  },
+  { medicineId: 'med5',  medicineName: 'Zinc tablets (20 mg)', type: 'dispense', qty: 14, unit: 'tablets', to: 'Aarav (House 22)', note: '14-day course',      date: ago(6)  },
+  { medicineId: 'med6',  medicineName: 'Paracetamol (500 mg)', type: 'dispense', qty: 10, unit: 'tablets', to: 'Meena Kumari', note: 'Fever',                  date: ago(4)  },
+  { medicineId: 'med1',  medicineName: 'IFA tablets (red)',    type: 'restock',  qty: 100, unit: 'tablets', to: '', note: '',                                  date: ago(20) },
 ]
 
 // ---- Proof documents held for a household -------------------------------
@@ -470,6 +551,7 @@ export const WOMAN = {
     mode: 'pregnant',
     memberId: 'm1', householdId: 'h14',   // the same rows the ASHA works with
     name: 'Sunita Devi', age: 24, houseNo: '14', village: 'Rampur',
+    email: 'sunita.devi@ashaflow.demo',
     husband: 'Ramesh Kumar', mobile: '98765 43210',
     rchId: 'RCH-RAM-48210', abha: '12-3456-7890-1234',
     statusLine: '5 months pregnant',
@@ -482,6 +564,7 @@ export const WOMAN = {
     mode: 'mother',
     memberId: 'm5', householdId: 'h22', babyId: 'm6',
     name: 'Rekha Kumari', age: 26, houseNo: '22', village: 'Rampur',
+    email: 'rekha.kumari@ashaflow.demo',
     husband: 'Mohan Lal', mobile: '98122 33445',
     rchId: 'RCH-RAM-47166', abha: '12-9911-2233-4455',
     statusLine: 'Mother of Aarav, 3 months',
@@ -719,20 +802,20 @@ export const WOMAN_NEWS = {
 
 export const WOMAN_DANGER = {
   pregnant: [
-    { icon: 'drop', label: 'Bleeding from the vagina' },
-    { icon: 'head', label: 'Severe headache or blurred vision' },
-    { icon: 'thermometer', label: 'High fever' },
-    { icon: 'baby', label: 'Baby has stopped moving' },
-    { icon: 'waves', label: 'Water breaking before time' },
-    { icon: 'alert', label: 'Severe stomach pain' },
+    { icon: 'drop', label: 'Bleeding from the vagina', key: 'd.bleeding' },
+    { icon: 'head', label: 'Severe headache or blurred vision', key: 'd.headache' },
+    { icon: 'thermometer', label: 'High fever', key: 'd.fever' },
+    { icon: 'baby', label: 'Baby has stopped moving', key: 'd.notMoving' },
+    { icon: 'waves', label: 'Water breaking before time', key: 'd.water' },
+    { icon: 'alert', label: 'Severe stomach pain', key: 'd.stomach' },
   ],
   mother: [
-    { icon: 'thermometer', label: 'Baby is hot or cold to touch' },
-    { icon: 'baby', label: 'Baby is not feeding' },
-    { icon: 'pulse', label: 'Fast or difficult breathing' },
-    { icon: 'alert', label: 'Baby is very drowsy or will not wake' },
-    { icon: 'drop', label: 'Heavy bleeding for you' },
-    { icon: 'waves', label: 'Convulsions or fits' },
+    { icon: 'thermometer', label: 'Baby is hot or cold to touch', key: 'd.babyTemp' },
+    { icon: 'baby', label: 'Baby is not feeding', key: 'd.notFeeding' },
+    { icon: 'pulse', label: 'Fast or difficult breathing', key: 'd.breathing' },
+    { icon: 'alert', label: 'Baby is very drowsy or will not wake', key: 'd.drowsy' },
+    { icon: 'drop', label: 'Heavy bleeding for you', key: 'd.motherBleeding' },
+    { icon: 'waves', label: 'Convulsions or fits', key: 'd.fits' },
   ],
 }
 

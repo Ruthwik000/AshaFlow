@@ -7,7 +7,7 @@ const ITEMS = [
   { to: '/asha/families', icon: 'families', key: 'nav.families' },
   { to: '/asha/add', icon: 'plus', key: 'nav.add', primary: true },
   { to: '/asha/assistant', icon: 'assist', key: 'nav.assist' },
-  { to: '/asha/earnings', icon: 'rupee', key: 'nav.earnings' },
+  { to: '/asha/medicine', icon: 'firstaid', key: 'nav.medicine' },
 ]
 
 export default function BottomNav() {

@@ -1,80 +1,213 @@
 {
   "code": "RCH",
-  "name": "RCH / Maternal and Child Health",
-  "shortName": "RCH portal",
+  "name": "RCH / Maternal Health",
+  "shortName": "Maternal",
   "icon": "pregnant",
   "colour": "brand",
-  "source": "RCH Portal Data Entry Manual (NHM): pregnant-woman registration, delivery outcome and child registration pages",
+  "source": "RCH Portal Data Entry Manual (NHM), pregnant-woman registration form",
   "sourceUrl": "https://nhmmizoram.org/upload/RCH%20Portal%20Data%20Entry%20Manual.pdf",
-  "version": 2,
+  "version": 1,
   "fields": [
-    { "id": "name",    "label": "Name of beneficiary",  "from": "person.name",         "required": true },
-    { "id": "mobile",  "label": "Mobile number",        "from": "person.mobile",       "required": true },
-    { "id": "village", "label": "Village",              "from": "household.village",   "required": true },
-    { "id": "houseNo", "label": "House number",         "from": "household.houseNo",   "required": true },
-
-    { "id": "age",     "label": "Age (years)",          "from": "person.age",          "required": true,
-      "for": ["Pregnancy", "Health check", "Illness", "Household survey"] },
-    { "id": "sex",     "label": "Sex",                  "from": "person.sex",          "required": true,
-      "for": ["Health check", "Illness", "Household survey"] },
-    { "id": "husband", "label": "Husband's / father's name", "from": "person.husbandName", "required": true,
-      "for": ["Pregnancy", "Newborn", "Household survey"] },
-    { "id": "aadhaar", "label": "Aadhaar (last 4)",     "from": "person.aadhaarLast4", "required": false,
-      "for": ["Pregnancy", "Household survey"] },
-    { "id": "caste",   "label": "Category",             "from": "person.caste",        "required": false,
-      "for": ["Pregnancy", "Household survey"] },
-
-    { "id": "lmp",     "label": "LMP",                     "from": "pregnancy.lmp",         "required": true,  "for": ["Pregnancy"] },
-    { "id": "edd",     "label": "EDD",                     "from": "pregnancy.edd",         "required": true,  "for": ["Pregnancy"] },
-    { "id": "gest",    "label": "Gestational age (weeks)", "from": "pregnancy.gestWeeks",   "required": true,  "for": ["Pregnancy"] },
-    { "id": "gravida", "label": "Gravida",                 "from": "pregnancy.gravida",     "required": true,  "for": ["Pregnancy"] },
-    { "id": "prevCs",  "label": "Previous caesarean",      "from": "pregnancy.prevCesarean","required": true,  "for": ["Pregnancy"] },
-    { "id": "regOn",   "label": "Date of registration",    "from": "pregnancy.registeredOn","required": true,  "for": ["Pregnancy"] },
-    { "id": "rchId",   "label": "RCH ID",                  "from": "pregnancy.rchId",       "required": true,  "for": ["Pregnancy"] },
-    { "id": "hrp",     "label": "High-risk pregnancy",     "from": "pregnancy.isHighRisk",  "required": true,  "for": ["Pregnancy"] },
-    { "id": "anc1",    "label": "ANC 1 due",               "from": "anc.visit1Due",         "required": true,  "for": ["Pregnancy"] },
-    { "id": "anc2",    "label": "ANC 2 due",               "from": "anc.visit2Due",         "required": true,  "for": ["Pregnancy"] },
-    { "id": "anc3",    "label": "ANC 3 due",               "from": "anc.visit3Due",         "required": true,  "for": ["Pregnancy"] },
-    { "id": "anc4",    "label": "ANC 4 due",               "from": "anc.visit4Due",         "required": true,  "for": ["Pregnancy"] },
-    { "id": "weight",  "label": "Weight (kg)",             "from": "vitals.weight",         "required": true,  "for": ["Pregnancy", "Health check"] },
-    { "id": "height",  "label": "Height (cm)",             "from": "vitals.height",         "required": true,  "for": ["Pregnancy", "Health check"] },
-    { "id": "hb",      "label": "Haemoglobin (g/dL)",      "from": "vitals.hb",             "required": true,  "for": ["Pregnancy"] },
-    { "id": "tt1",     "label": "TT/Td dose 1 given",      "from": "tt.dose1Given",         "required": true,  "for": ["Pregnancy"] },
-
-    { "id": "delDate", "label": "Date of delivery",        "from": "delivery.date",         "required": true,  "for": ["Newborn"] },
-    { "id": "delPlace","label": "Place of delivery",       "from": "delivery.place",        "required": true,  "for": ["Newborn"] },
-    { "id": "delType", "label": "Type of delivery",        "from": "delivery.type",         "required": true,  "for": ["Newborn"] },
-    { "id": "delInst", "label": "Institutional delivery",  "from": "delivery.institutional","required": true,  "for": ["Newborn"] },
-    { "id": "jsy",     "label": "JSY claim eligible",      "from": "delivery.jsyEligible",  "required": true,  "for": ["Newborn"] },
-    { "id": "bwt",     "label": "Birth weight (kg)",       "from": "child.birthWeight",     "required": true,  "for": ["Newborn"] },
-    { "id": "lbw",     "label": "Low birth weight",        "from": "child.lowBirthWeight",  "required": true,  "for": ["Newborn"] },
-    { "id": "hbncNo",  "label": "HBNC visit number",       "from": "newborn.visitNumber",   "required": true,  "for": ["Newborn"] },
-    { "id": "hbncWt",  "label": "Weight at this visit (kg)","from": "newborn.weightToday",  "required": true,  "for": ["Newborn"] },
-    { "id": "hbncTemp","label": "Temperature (F)",         "from": "newborn.temperature",   "required": true,  "for": ["Newborn"] },
-    { "id": "bf1hr",   "label": "Breastfed within 1 hour", "from": "newborn.breastfedWithin1Hr", "required": true, "for": ["Newborn"] },
-    { "id": "ebf",     "label": "Exclusively breastfed",   "from": "newborn.exclusiveBreastfeed","required": true, "for": ["Newborn"] },
-    { "id": "nbSigns", "label": "Newborn danger signs",    "from": "newborn.dangerSigns",   "required": true,  "for": ["Newborn"] },
-    { "id": "sepsis",  "label": "Suspected sepsis",        "from": "newborn.sepsisSuspected","required": true, "for": ["Newborn"] },
-    { "id": "nbRef",   "label": "Newborn referred",        "from": "newborn.referred",      "required": true,  "for": ["Newborn"] },
-    { "id": "mSigns",  "label": "Mother danger signs",     "from": "mother.dangerSigns",    "required": true,  "for": ["Newborn"] },
-    { "id": "mRef",    "label": "Mother referred",         "from": "mother.referred",       "required": true,  "for": ["Newborn"] },
-    { "id": "ppfp",    "label": "Postpartum FP counselled","from": "mother.postpartumFP",   "required": true,  "for": ["Newborn"] },
-    { "id": "hbncNext","label": "Next HBNC visit due",     "from": "newborn.nextVisitDue",  "required": true,  "for": ["Newborn"] },
-
-    { "id": "cName",   "label": "Child's name",            "from": "child.name",            "required": true,  "for": ["Newborn", "Child vaccine"] },
-    { "id": "cSex",    "label": "Child's sex",             "from": "child.sex",             "required": true,  "for": ["Newborn", "Child vaccine"] },
-    { "id": "cDob",    "label": "Child's date of birth",   "from": "child.dob",             "required": true,  "for": ["Newborn", "Child vaccine"] },
-    { "id": "cAge",    "label": "Age in months",           "from": "child.ageMonths",       "required": true,  "for": ["Child vaccine"] },
-    { "id": "cFeed",   "label": "Complementary feeds a day","from": "child.feedingMeals",   "required": false, "for": ["Child vaccine"] },
-    { "id": "cDeworm", "label": "Deworming given",         "from": "child.deworming",       "required": false, "for": ["Child vaccine"] },
-
-    { "id": "ecCount", "label": "Eligible couples",        "from": "household.eligibleCouples","required": true, "for": ["Household survey"] },
-    { "id": "fp",      "label": "Family planning method",  "from": "household.fpMethod",    "required": true,  "for": ["Household survey"] },
-    { "id": "unmet",   "label": "Unmet need",              "from": "household.unmetNeed",   "required": true,  "for": ["Household survey"] },
-    { "id": "pregNow", "label": "Pregnant women in house", "from": "household.pregnantWomen","required": true, "for": ["Household survey"] },
-    { "id": "u5",      "label": "Children under 5",        "from": "household.childrenUnder5","required": true,"for": ["Household survey"] },
-
-    { "id": "refTo",   "label": "Referred to",             "from": "referral.madeTo",       "required": true,
-      "for": ["Newborn", "Health check", "Illness"] }
+    {
+      "id": "name",
+      "label": "Name of pregnant woman",
+      "from": "person.name",
+      "required": true
+    },
+    {
+      "id": "age",
+      "label": "Age (years)",
+      "from": "person.age",
+      "required": true
+    },
+    {
+      "id": "husband",
+      "label": "Husband's name",
+      "from": "person.husbandName",
+      "required": true
+    },
+    {
+      "id": "mobile",
+      "label": "Mobile number",
+      "from": "person.mobile",
+      "required": true
+    },
+    {
+      "id": "aadhaar",
+      "label": "Aadhaar (last 4)",
+      "from": "person.aadhaarLast4",
+      "required": false
+    },
+    {
+      "id": "caste",
+      "label": "Category",
+      "from": "person.caste",
+      "required": false
+    },
+    {
+      "id": "village",
+      "label": "Village",
+      "from": "household.village",
+      "required": true
+    },
+    {
+      "id": "houseNo",
+      "label": "House number",
+      "from": "household.houseNo",
+      "required": true
+    },
+    {
+      "id": "lmp",
+      "label": "LMP",
+      "from": "pregnancy.lmp",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "edd",
+      "label": "EDD",
+      "from": "pregnancy.edd",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "gest",
+      "label": "Gestational age (weeks)",
+      "from": "pregnancy.gestWeeks",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "gravida",
+      "label": "Gravida",
+      "from": "pregnancy.gravida",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "prevCs",
+      "label": "Previous caesarean",
+      "from": "pregnancy.prevCesarean",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "regOn",
+      "label": "Date of registration",
+      "from": "pregnancy.registeredOn",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "rchId",
+      "label": "RCH ID",
+      "from": "pregnancy.rchId",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "hrp",
+      "label": "High-risk pregnancy",
+      "from": "pregnancy.isHighRisk",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "anc1",
+      "label": "ANC 1 due",
+      "from": "anc.visit1Due",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "anc2",
+      "label": "ANC 2 due",
+      "from": "anc.visit2Due",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "anc3",
+      "label": "ANC 3 due",
+      "from": "anc.visit3Due",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "anc4",
+      "label": "ANC 4 due",
+      "from": "anc.visit4Due",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    },
+    {
+      "id": "weight",
+      "label": "Weight (kg)",
+      "from": "vitals.weight",
+      "required": true,
+      "for": [
+        "Pregnancy",
+        "Newborn",
+        "Health check",
+        "Illness"
+      ]
+    },
+    {
+      "id": "height",
+      "label": "Height (cm)",
+      "from": "vitals.height",
+      "required": true,
+      "for": [
+        "Pregnancy",
+        "Newborn",
+        "Health check",
+        "Illness"
+      ]
+    },
+    {
+      "id": "hb",
+      "label": "Haemoglobin (g/dL)",
+      "from": "vitals.hb",
+      "required": true,
+      "for": [
+        "Pregnancy",
+        "Newborn",
+        "Health check",
+        "Illness"
+      ]
+    },
+    {
+      "id": "tt1",
+      "label": "TT/Td dose 1 given",
+      "from": "tt.dose1Given",
+      "required": true,
+      "for": [
+        "Pregnancy"
+      ]
+    }
   ]
 }

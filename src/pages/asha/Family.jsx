@@ -186,13 +186,19 @@ export default function Family() {
                 const mine = enrol.filter(x => x.memberId === p.id)
                 const asBeneficiary = Object.entries(WOMAN).find(([, v]) => v.memberId === p.id)?.[0]
                 return (
-                  <Card key={p.id} className="p-4">
+                  <Card
+                    key={p.id}
+                    onClick={() => nav(`/asha/person/${p.id}`)}
+                    className="p-4 cursor-pointer hover:border-brand/50 transition relative press">
                     <div className="flex items-start gap-3">
                       <span className={`w-11 h-11 shrink-0 rounded-xl grid place-items-center ${k.tone}`}>
                         <Icon name={k.icon} size={20} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="font-bold text-[16px] leading-tight">{p.name}</div>
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="font-bold text-[16px] leading-tight text-ink">{p.name}</div>
+                          <span className="text-ink-3 shrink-0"><Icon name="chevron" size={16} /></span>
+                        </div>
                         <div className="text-[12.5px] text-ink-3 mt-0.5">
                           {p.sex === 'F' ? 'Female' : 'Male'} · {p.role}
                         </div>
@@ -219,9 +225,14 @@ export default function Family() {
                       </div>
                     )}
 
+                    <div className="mt-3 pt-2.5 border-t border-line-2 flex items-center justify-between text-[12.5px] font-semibold text-brand">
+                      <span>View Health, Vaccine &amp; Diet Progress</span>
+                      <span>›</span>
+                    </div>
+
                     {asBeneficiary && (
-                      <Btn size="sm" tone="ghost" className="mt-3 w-full"
-                        onClick={() => { setWomanMode(asBeneficiary); nav('/woman') }}>
+                      <Btn size="sm" tone="ghost" className="mt-2.5 w-full"
+                        onClick={(e) => { e.stopPropagation(); setWomanMode(asBeneficiary); nav('/woman') }}>
                         Open her own portal
                       </Btn>
                     )}

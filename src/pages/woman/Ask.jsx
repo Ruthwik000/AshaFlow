@@ -11,6 +11,7 @@ import VoiceBar from '../../components/VoiceBar'
 import { AI } from '../../ai/config'
 import { createVoiceAgent, voiceSupported, speakOnce } from '../../engine/voice'
 import { Btn, Notice } from '../../components/ui'
+import { useT } from '../../i18n'
 
 /** **bold** without pulling in a markdown parser. */
 function rich(text) {
@@ -46,6 +47,7 @@ function Mark({ size = 30 }) {
 
 export default function Ask() {
   const nav = useNavigate()
+  const t = useT()
   const mode = useStore(s => s.womanMode)
   const offline = useStore(s => s.demoOffline || !s.online)
   const [subject] = useSubject(mode)
@@ -53,10 +55,10 @@ export default function Ask() {
   const ctx = useMemo(() => (subject ? buildContext(subject) : null), [subject])
   const prompts = useMemo(() => (ctx ? suggestions(ctx) : []), [ctx])
   const TOPICS = mode === 'pregnant'
-    ? [{ icon: 'pulse', label: 'My health' }, { icon: 'wallet', label: 'My money' },
-       { icon: 'doc', label: 'My papers' }, { icon: 'calendar', label: 'My visits' }]
-    : [{ icon: 'syringe', label: 'Vaccines' }, { icon: 'growth', label: "Baby's growth" },
-       { icon: 'wallet', label: 'My money' }, { icon: 'baby', label: 'Feeding' }]
+    ? [{ icon: 'pulse', k: 'w.topicHealth' }, { icon: 'wallet', k: 'w.topicMoney' },
+       { icon: 'doc', k: 'w.topicPapers' }, { icon: 'calendar', k: 'w.topicVisits' }]
+    : [{ icon: 'syringe', k: 'w.topicVaccines' }, { icon: 'growth', k: 'w.topicGrowth' },
+       { icon: 'wallet', k: 'w.topicMoney' }, { icon: 'baby', k: 'w.topicFeeding' }]
 
   const lang = useStore(s => s.lang)
   const [msgs, setMsgs] = useState([])
@@ -136,13 +138,13 @@ export default function Ask() {
 
   return (
     <>
-      <WomanBar title="Ask" sub="About your health, your money, your papers" />
+      <WomanBar title={t('w.ask')} sub={t('w.askSub')} />
 
       <main className="flex-1 px-4 py-4 overflow-y-auto">
         {offline && (
           <div className="mb-4">
-            <Notice tone="due" title="No signal right now">
-              You need a connection to ask a question. Your record and your scheme pages still work.
+            <Notice tone="due" title={t('w.offlineTitle')}>
+              {t('w.offlineBody')}
             </Notice>
           </div>
         )}
@@ -151,23 +153,23 @@ export default function Ask() {
           <div className="py-4 anim-up">
             <div className="text-center">
               <div className="mx-auto w-fit mb-4"><Mark size={52} /></div>
-              <h2 className="text-[21px] font-bold tracking-[-0.015em]">What would you like to know?</h2>
+              <h2 className="text-[21px] font-bold tracking-[-0.015em]">{t('w.askEmpty')}</h2>
               <p className="text-[14px] text-ink-2 leading-relaxed mt-2 max-w-[33ch] mx-auto">
-                Ask about anything in your own record, any scheme, or where an application has reached.
+                {t('w.askEmptyBody')}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 mt-6">
               {TOPICS.map(c => (
-                <div key={c.label} className="raise-sm rounded-2xl px-3.5 py-3 flex items-center gap-2.5">
+                <div key={c.k} className="raise-sm rounded-2xl px-3.5 py-3 flex items-center gap-2.5">
                   <span className="text-brand shrink-0"><Icon name={c.icon} size={17} /></span>
-                  <span className="text-[12.5px] font-semibold text-ink-2 leading-tight">{c.label}</span>
+                  <span className="text-[12.5px] font-semibold text-ink-2 leading-tight">{t(c.k)}</span>
                 </div>
               ))}
             </div>
 
             <div className="mt-7">
-              <div className="text-[13px] font-semibold text-ink-2 mb-2.5 px-0.5">Try asking</div>
+              <div className="text-[13px] font-semibold text-ink-2 mb-2.5 px-0.5">{t('w.tryAsking')}</div>
               <div className="space-y-2">
                 {prompts.map(p => (
                   <button key={p} onClick={() => send(p)}
@@ -204,14 +206,14 @@ export default function Ask() {
                       <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-due-soft px-2.5 py-1.5">
                         <span className="text-due shrink-0 mt-0.5"><Icon name="info" size={12} /></span>
                         <span className="text-[11px] text-due leading-snug">
-                          Shown in English — this answer has not been translated and reviewed yet.
+                          {t('w.notTranslated')}
                         </span>
                       </div>
                     )}
                     {m.sources?.length > 0 && (
                       <div className="mt-3.5 pt-3.5 border-t border-line-2">
                         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-3 mb-2">
-                          <Icon name="doc" size={13} /> Read from
+                          <Icon name="doc" size={13} /> {t('w.readFrom')}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {m.sources.map(s => (
@@ -236,7 +238,7 @@ export default function Ask() {
                     {m.via && (
                       <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded
                         ${m.via === 'local' ? 'bg-line-2 text-ink-3' : 'bg-brand-soft text-brand'}`}>
-                        {m.via === 'local' ? 'offline' : m.via === 'grok' ? AI.grok.label : m.via}
+                        {m.via === 'local' ? t('w.onDevice') : m.via === 'grok' ? AI.grok.label : m.via}
                       </span>
                     )}
                     {m.tried?.length > 0 && m.via === 'local' && (
@@ -248,10 +250,10 @@ export default function Ask() {
                     )}
                     <button onClick={() => say(m.text.replace(/\*\*/g, ''))}
                       className="press flex items-center gap-1 text-[11px] font-semibold text-ink-3">
-                      <Icon name="assist" size={12} /> Read aloud
+                      <Icon name="assist" size={12} /> {t('w.readAloud')}
                     </button>
                     <button className="press flex items-center gap-1 text-[11px] font-semibold text-ink-3">
-                      <Icon name="phone" size={12} /> Ask my ASHA
+                      <Icon name="phone" size={12} /> {t('w.askMyAsha')}
                     </button>
                   </div>
 
@@ -302,7 +304,7 @@ export default function Ask() {
         <div className="flex items-end gap-1.5">
           <input value={input} onChange={e => setInput(e.target.value)} id="womanask"
             onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder="Type your question…"
+            placeholder={t('w.typeQuestion')}
             className="sink flex-1 min-w-0 min-h-[50px] rounded-2xl px-4 text-[15px] placeholder:text-ink-3/60" />
 
           {/* Both, always. Typing and talking are two ways in, not a toggle. */}
@@ -319,9 +321,7 @@ export default function Ask() {
           </button>
         </div>
         <p className="text-[10.5px] text-ink-3 text-center mt-2.5 leading-snug px-2">
-          {!live
-            ? 'Tap the button and just talk — it keeps listening until you say stop. Answers come from your own record. Not a doctor: for anything urgent call your ASHA or 102.'
-            : 'Speak naturally. It will answer aloud and then listen again.'}
+          {live ? t('w.voiceLive') : t('w.voiceHint')}
         </p>
       </div>
     </>

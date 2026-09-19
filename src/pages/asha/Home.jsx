@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, queueSize } from '../../db/db'
 import { useStore } from '../../store/useStore'
-import { earningsHistory, REMINDERS } from '../../data/seed'
+import { MEDICINE_KIT, REMINDERS } from '../../data/seed'
 import { AppBar, Card, Section, List, Row, LevelDot, Pill, rupee, daysFromNow } from '../../components/ui'
 import Icon from '../../components/Icon'
 import { useT, dateLocale } from '../../i18n'
@@ -20,8 +20,8 @@ export default function Home() {
     queueSize().then(setQueued)
   }, [])
 
-  const month = earningsHistory.reduce((n, e) => n + e.amount, 0)
-  const unclaimed = earningsHistory.filter(e => !e.claimed).length
+  const lowMeds = MEDICINE_KIT.filter(m => m.qty <= m.minQty).length
+  const outMeds = MEDICINE_KIT.filter(m => m.qty === 0).length
   const today = new Date().toLocaleDateString(dateLocale(t.lang), { weekday: 'long', day: 'numeric', month: 'long' })
   const late = tasks.filter(t => t.level === 'late').length
 
@@ -78,7 +78,7 @@ export default function Home() {
         <Section title={t('home.visitToday')}>
           <List>
             {tasks.map(t => (
-              <Row key={t.id} onClick={() => nav(`/asha/family/${t.householdId}`)}
+              <Row key={t.id} onClick={() => nav(t.memberId ? `/asha/person/${t.memberId}` : `/asha/family/${t.householdId}`)}
                 icon={<LevelDot level={t.level} />}
                 title={t.title}
                 sub={`${t.reason} · ${t.house} · ${daysFromNow(t.due)}`} />
@@ -88,10 +88,10 @@ export default function Home() {
         </Section>
 
         <div className="grid grid-cols-2 gap-3">
-          <Card onClick={() => nav('/asha/earnings')} className="p-4">
-            <div className="text-[12.5px] text-ink-2">{t('home.thisMonth')}</div>
-            <div className="text-[26px] font-bold text-brand num leading-none mt-1.5 tracking-[-0.02em]">{rupee(month)}</div>
-            {unclaimed > 0 && <div className="mt-2.5"><Pill level="due">{unclaimed} {t('home.unclaimed')}</Pill></div>}
+          <Card onClick={() => nav('/asha/medicine')} className="p-4">
+            <div className="text-[12.5px] text-ink-2">{t('nav.medicine')}</div>
+            <div className="text-[26px] font-bold text-brand num leading-none mt-1.5 tracking-[-0.02em]">{MEDICINE_KIT.length}</div>
+            {lowMeds > 0 && <div className="mt-2.5"><Pill level={outMeds > 0 ? 'late' : 'due'}>{lowMeds} low</Pill></div>}
           </Card>
           <Card onClick={() => nav('/asha/sync')} className="p-4">
             <div className="text-[12.5px] text-ink-2">{t('home.toSend')}</div>

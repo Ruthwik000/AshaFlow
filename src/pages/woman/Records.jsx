@@ -6,29 +6,31 @@ import { TIMELINE_KINDS } from '../../data/seed'
 import Icon from '../../components/Icon'
 import WomanBar from '../../components/WomanBar'
 import { Card, Btn, Notice, Empty, rupee, fmtDate } from '../../components/ui'
+import { useT } from '../../i18n'
 
 const FILTERS = [
-  { k: 'all', l: 'Everything' }, { k: 'checkup', l: 'Check-ups' },
-  { k: 'test', l: 'Tests' }, { k: 'vaccine', l: 'Vaccines' },
-  { k: 'growth', l: 'Growth' }, { k: 'payment', l: 'Payments' },
-  { k: 'document', l: 'Papers' },
+  { k: 'all', t: 'w.fAll' }, { k: 'checkup', t: 'w.fCheckup' },
+  { k: 'test', t: 'w.fTest' }, { k: 'vaccine', t: 'w.fVaccine' },
+  { k: 'growth', t: 'w.fGrowth' }, { k: 'payment', t: 'w.fPayment' },
+  { k: 'document', t: 'w.fDocument' },
 ]
 
 export default function Records() {
   const [sp] = useSearchParams()
+  const t = useT()
   const mode = useStore(s => s.womanMode)
   const [filter, setFilter] = useState(sp.get('filter') || 'all')
   const [open, setOpen] = useState(null)
 
   const [subject] = useSubject(mode)
-  if (!subject) return <div className="p-6 text-ink-3">Reading your record…</div>
+  if (!subject) return <div className="p-6 text-ink-3">{t('w.reading')}</div>
   const all = subject.timeline
   const rows = filter === 'all' ? all : all.filter(r => r.kind === filter)
   const available = new Set(all.map(r => r.kind))
 
   return (
     <>
-      <WomanBar title="My record" sub={`${all.length} entries, newest first`} />
+      <WomanBar title={t('w.myRecord')} sub={t('w.entries', { n: all.length })} />
 
       <div className="px-4 py-3 bg-paper/92 backdrop-blur-md border-b border-line sticky top-0 z-20">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
@@ -36,14 +38,14 @@ export default function Records() {
             <button key={f.k} onClick={() => setFilter(f.k)}
               className={`press shrink-0 min-h-[38px] px-3.5 rounded-full text-[13px] font-semibold
                 ${filter === f.k ? 'btn-solid text-white' : 'raise-sm text-ink-2'}`}>
-              {f.l}
+              {t(f.t)}
             </button>
           ))}
         </div>
       </div>
 
       <main className="flex-1 px-4 py-4 pb-4">
-        {rows.length === 0 && <Empty title="Nothing here yet" sub="This will fill up as you have visits." />}
+        {rows.length === 0 && <Empty title={t('w.emptyTitle')} sub={t('w.emptySub')} />}
 
         <div className="relative">
           {rows.length > 1 && (
@@ -69,7 +71,7 @@ export default function Records() {
                             <span className="text-[11.5px] text-ink-3 num">{fmtDate(r.date)} · {k.label}</span>
                             {r.fresh && (
                               <span className="text-[9.5px] font-bold uppercase tracking-wide
-                                               bg-brand-soft text-brand px-1.5 py-0.5 rounded">New</span>
+                                               bg-brand-soft text-brand px-1.5 py-0.5 rounded">{t('w.new')}</span>
                             )}
                           </div>
                           <div className="font-bold text-[15px] leading-tight mt-1">{r.title}</div>
@@ -109,7 +111,7 @@ export default function Records() {
                         )}
                         {r.sentTo?.length > 0 && (
                           <div className="px-4 py-3 border-t border-line-2">
-                            <div className="text-[11.5px] text-ink-3 mb-2">This was sent to</div>
+                            <div className="text-[11.5px] text-ink-3 mb-2">{t('w.sentTo')}</div>
                             <div className="flex flex-wrap gap-1.5">
                               {r.sentTo.map(s => (
                                 <span key={s} className="sink text-[11.5px] px-2 py-1 rounded-lg text-ink-2">{s}</span>
@@ -119,7 +121,7 @@ export default function Records() {
                         )}
                         <div className="px-4 py-3 border-t border-line-2">
                           <Btn size="sm" tone="ghost" className="w-full">
-                            <Icon name="alert" size={15} /> Something here is wrong
+                            <Icon name="alert" size={15} /> {t('w.somethingWrong')}
                           </Btn>
                         </div>
                       </div>
@@ -132,11 +134,7 @@ export default function Records() {
         </div>
 
         <div className="mt-5">
-          <Notice tone="brand" title="This is your information">
-            Every entry above was written by a health worker during a visit, and it is yours to read.
-            If a value looks wrong, say so — corrections travel back to the same systems the record
-            was sent to.
-          </Notice>
+          <Notice tone="brand" title={t('w.yoursTitle')}>{t('w.yoursBody')}</Notice>
         </div>
       </main>
     </>

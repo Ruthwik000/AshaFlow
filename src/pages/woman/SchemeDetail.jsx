@@ -3,13 +3,15 @@ import { useStore } from '../../store/useStore'
 import { WOMAN_SCHEMES } from '../../data/seed'
 import Icon from '../../components/Icon'
 import { TopBar, Card, Section, Btn, List, Row, rupee, fmtDate } from '../../components/ui'
+import { useT } from '../../i18n'
 
 export default function SchemeDetail() {
   const { code } = useParams()
   const nav = useNavigate()
+  const t = useT()
   const mode = useStore(s => s.womanMode)
   const s = WOMAN_SCHEMES[mode].find(x => x.code === code)
-  if (!s) return <div className="p-6 text-ink-3">Not found</div>
+  if (!s) return <div className="p-6 text-ink-3">{t('w.notFound')}</div>
 
   const dot = { done: 'btn-solid text-white', blocked: 'btn-danger text-white', pending: 'sink text-ink-3' }
   const line = { done: 'bg-brand', blocked: 'bg-late', pending: 'bg-line' }
@@ -20,15 +22,15 @@ export default function SchemeDetail() {
       <main className="flex-1 px-4 py-4 space-y-5 pb-8">
 
         <Card className="p-5">
-          <div className="text-[12.5px] text-ink-2 mb-1.5">What this is</div>
+          <div className="text-[12.5px] text-ink-2 mb-1.5">{t('w.whatThis')}</div>
           <p className="text-[15px] leading-relaxed">{s.what}</p>
           <div className="mt-4 pt-4 border-t border-line-2">
-            <div className="text-[12.5px] text-ink-2 mb-1">How much</div>
+            <div className="text-[12.5px] text-ink-2 mb-1">{t('w.howMuch')}</div>
             <p className="text-[15px] font-semibold leading-snug">{s.amount}</p>
           </div>
         </Card>
 
-        <Section title="Who can get it">
+        <Section title={t('w.whoCanGet')}>
           <List>
             {s.who.map(x => (
               <Row key={x} icon={<span className="text-brand"><Icon name="check" size={17} stroke={2.3} /></span>}
@@ -37,7 +39,7 @@ export default function SchemeDetail() {
           </List>
         </Section>
 
-        <Section title="Papers you need">
+        <Section title={t('w.papersNeed')}>
           <List>
             {s.needs.map(x => (
               <Row key={x} icon={<Icon name="doc" size={18} />}
@@ -46,7 +48,7 @@ export default function SchemeDetail() {
           </List>
         </Section>
 
-        <Section title="Where it has reached">
+        <Section title={t('w.whereReached')}>
           <Card className="p-5">
             {s.stages.map((st, i) => (
               <div key={i} className="flex gap-3.5">
@@ -71,15 +73,15 @@ export default function SchemeDetail() {
                     <div className="mt-3 rounded-2xl bg-late-soft border border-late/25 p-4"
                       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6)' }}>
                       <div className="flex items-center gap-1.5 text-[13px] font-bold text-late">
-                        <Icon name="alert" size={15} /> Why it has not happened
+                        <Icon name="alert" size={15} /> {t('w.whyNot')}
                       </div>
                       <p className="text-[13.5px] text-ink-2 mt-1.5 leading-relaxed">{st.blocker}</p>
-                      <div className="text-[13px] font-bold text-ink mt-3">What to do</div>
+                      <div className="text-[13px] font-bold text-ink mt-3">{t('w.whatToDo')}</div>
                       <p className="text-[13.5px] text-ink-2 mt-1 leading-relaxed">{st.fix}</p>
                       <div className="grid grid-cols-2 gap-2.5 mt-3.5">
-                        <Btn size="sm" tone="ghost"><Icon name="phone" size={15} /> Ask my ASHA</Btn>
+                        <Btn size="sm" tone="ghost"><Icon name="phone" size={15} /> {t('w.askMyAsha')}</Btn>
                         <Btn size="sm" tone="ghost" onClick={() => nav('/woman/ask')}>
-                          <Icon name="message" size={15} /> Ask here
+                          <Icon name="message" size={15} /> {t('w.askHere')}
                         </Btn>
                       </div>
                     </div>

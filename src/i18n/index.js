@@ -5,13 +5,14 @@ import { useStore } from '../store/useStore'
    native-speaker review rather than shipped half-done. */
 export { LANGS, READY, LOCALE } from './langs'
 import { LOCALE } from './langs'
+import { WOMAN_DICT } from './woman'
 
 const EN = {
   appName: 'ASHAFlow',
   tagline: 'One visit. One entry. Five systems.',
 
   'nav.home': 'Home', 'nav.families': 'Families', 'nav.add': 'Add',
-  'nav.assist': 'Assist', 'nav.earnings': 'Earnings',
+  'nav.assist': 'Assist', 'nav.medicine': 'Med Kit',
 
   'common.back': 'Back', 'common.next': 'Next', 'common.done': 'Done',
   'common.save': 'Save', 'common.cancel': 'Cancel', 'common.close': 'Close',
@@ -80,7 +81,7 @@ const HI = {
   tagline: 'एक भेंट। एक बार दर्ज। पाँच प्रणालियाँ।',
 
   'nav.home': 'होम', 'nav.families': 'परिवार', 'nav.add': 'जोड़ें',
-  'nav.assist': 'सहायक', 'nav.earnings': 'कमाई',
+  'nav.assist': 'सहायक', 'nav.medicine': 'दवा किट',
 
   'common.back': 'वापस', 'common.next': 'आगे', 'common.done': 'हो गया',
   'common.save': 'सहेजें', 'common.cancel': 'रद्द करें', 'common.close': 'बंद करें',
@@ -149,7 +150,7 @@ const TE = {
   tagline: 'ఒక సందర్శన. ఒకసారి నమోదు. ఐదు వ్యవస్థలు.',
 
   'nav.home': 'హోమ్', 'nav.families': 'కుటుంబాలు', 'nav.add': 'చేర్చు',
-  'nav.assist': 'సహాయకుడు', 'nav.earnings': 'సంపాదన',
+  'nav.assist': 'సహాయకుడు', 'nav.medicine': 'మందుల కిట్',
 
   'common.back': 'వెనక్కి', 'common.next': 'తరువాత', 'common.done': 'పూర్తయింది',
   'common.save': 'భద్రపరచు', 'common.cancel': 'రద్దు', 'common.close': 'మూసివేయి',
@@ -213,7 +214,13 @@ const TE = {
   'settings.comingSoon': 'స్థానిక భాషా సమీక్ష పెండింగ్',
 }
 
-const DICT = { en: EN, hi: HI, te: TE }
+/* The beneficiary portal's copy lives in its own file — it is the largest
+   block of text in the app and it belongs to one audience. */
+const DICT = {
+  en: { ...EN, ...WOMAN_DICT.en },
+  hi: { ...HI, ...WOMAN_DICT.hi },
+  te: { ...TE, ...WOMAN_DICT.te },
+}
 
 export function t(key, lang) {
   const d = DICT[lang] || DICT.en
@@ -223,7 +230,14 @@ export function t(key, lang) {
 /** Returns a translate function bound to the current language. */
 export function useT() {
   const lang = useStore(s => s.lang)
-  const fn = key => t(key, lang)
+  /* t('w.monthOf', { n: 5 }) — {name} placeholders filled in, so a sentence
+     stays one translatable string instead of three fragments glued together
+     in an order that only works in English. */
+  const fn = (key, vars) => {
+    const out = t(key, lang)
+    if (!vars) return out
+    return String(out).replace(/\{(\w+)\}/g, (m, k) => (vars[k] ?? m))
+  }
   fn.lang = lang
   fn.isHi = lang === 'hi'
   return fn

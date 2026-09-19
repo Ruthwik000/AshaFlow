@@ -4,12 +4,14 @@ import { WOMAN_SCHEMES } from '../../data/seed'
 import Icon from '../../components/Icon'
 import WomanBar from '../../components/WomanBar'
 import { Card, Section, Pill, Bar, rupee } from '../../components/ui'
+import { useT } from '../../i18n'
 
 const STATE = { active: 'done', blocked: 'late', due: 'due', waiting: 'info' }
-const WORD = { active: 'Running', blocked: 'Held up', due: 'Due now', waiting: 'Waiting' }
+const WORD = { active: 'w.stRunning', blocked: 'w.stHeld', due: 'w.stDue', waiting: 'w.stWaiting' }
 
 export default function Schemes() {
   const nav = useNavigate()
+  const t = useT()
   const mode = useStore(s => s.womanMode)
   const schemes = WOMAN_SCHEMES[mode]
 
@@ -21,32 +23,32 @@ export default function Schemes() {
 
   return (
     <>
-      <WomanBar title="Schemes" sub={`${schemes.length} you are entitled to`} />
+      <WomanBar title={t('w.schemes')} sub={t('w.entitled', { n: schemes.length })} />
 
       <main className="flex-1 px-4 py-4 space-y-5 pb-4">
 
         <Card className="p-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-[12.5px] text-ink-2">Received so far</div>
+              <div className="text-[12.5px] text-ink-2">{t('w.received')}</div>
               <div className="text-[28px] font-bold num text-brand leading-none mt-1.5 tracking-[-0.02em]">
                 {rupee(paid)}
               </div>
             </div>
             <div>
-              <div className="text-[12.5px] text-ink-2">Still to come</div>
+              <div className="text-[12.5px] text-ink-2">{t('w.stillToCome')}</div>
               <div className="text-[28px] font-bold num leading-none mt-1.5 tracking-[-0.02em]">{rupee(owed)}</div>
             </div>
           </div>
           <div className="mt-4"><Bar value={(paid / Math.max(paid + owed, 1)) * 100} /></div>
           {held > 0 && (
             <p className="text-[12.5px] text-late font-semibold mt-3">
-              {held} {held > 1 ? 'schemes are' : 'scheme is'} held up on a document.
+              {held > 1 ? t('w.heldMany', { n: held }) : t('w.heldOne')}
             </p>
           )}
         </Card>
 
-        <Section title="Your schemes">
+        <Section title={t('w.yourSchemes')}>
           <div className="space-y-2.5">
             {schemes.map(s => {
               const nextStage = s.stages.find(x => x.state !== 'done')
@@ -65,13 +67,13 @@ export default function Schemes() {
                       <p className="text-[13px] text-ink-2 mt-2 leading-relaxed">{s.what}</p>
                       <div className={`text-[13px] mt-2.5 font-semibold
                         ${s.state === 'blocked' ? 'text-late' : s.state === 'due' ? 'text-due' : 'text-ink-2'}`}>
-                        {nextStage ? (nextStage.blocker || nextStage.label) : 'All steps complete'}
+                        {nextStage ? (nextStage.blocker || nextStage.label) : t('w.allComplete')}
                       </div>
                       <div className="text-[11.5px] text-ink-3 mt-1.5 num">
-                        Step {doneCount} of {s.stages.length}
+                        {t('w.stepOf', { a: doneCount, b: s.stages.length })}
                       </div>
                     </div>
-                    <Pill level={STATE[s.state]}>{WORD[s.state]}</Pill>
+                    <Pill level={STATE[s.state]}>{t(WORD[s.state])}</Pill>
                   </div>
                 </Card>
               )
@@ -79,11 +81,7 @@ export default function Schemes() {
           </div>
         </Section>
 
-        <p className="text-[11.5px] text-ink-3 px-1 leading-relaxed">
-          Amounts and conditions differ by state and are revised from time to time. These are
-          demonstration values held in a configuration file — check the official scheme page before
-          relying on them.
-        </p>
+        <p className="text-[11.5px] text-ink-3 px-1 leading-relaxed">{t('w.schemeNote')}</p>
       </main>
     </>
   )
